@@ -13,7 +13,6 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['MOCKUPS_FOLDER'] = 'mockups'
 
 BG_REMOVAL_API = "https://api-inference.huggingface.co/models/not-lain/background-removal"
 TEXT_TO_IMAGE_API = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
@@ -22,10 +21,9 @@ HEADERS = {
     "Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_TOKEN')}"
 }
 
-# In-memory storage for layers and assets
+# In-memory storage for layers and assets (replace with database in production)
 layers = []
 assets = []
-mockups = []  # Storage for mockup templates
 
 def query_huggingface_api(api_url, **kwargs):
     """
@@ -36,31 +34,6 @@ def query_huggingface_api(api_url, **kwargs):
     if response.status_code != 200:
         raise Exception(f"API Error: {response.status_code} - {response.text}")
     return response.content
-
-def init_mockups():
-    """Initialize built-in mockups"""
-    if not os.path.exists(app.config['MOCKUPS_FOLDER']):
-        os.makedirs(app.config['MOCKUPS_FOLDER'], exist_ok=True)
-        # You would add default mockups here in production
-    
-    # Load mockups from folder
-    for filename in os.listdir(app.config['MOCKUPS_FOLDER']):
-        if filename.endswith(('.png', '.jpg', '.jpeg')):
-            path = os.path.join(app.config['MOCKUPS_FOLDER'], filename)
-            with open(path, 'rb') as f:
-                mockup_data = f.read()
-                name = os.path.splitext(filename)[0]
-                mockups.append({
-                    "id": len(mockups),
-                    "name": name,
-                    "image": mockup_data,
-                    "smart_object_area": {
-                        # Default values - in production you would 
-                        # have these saved in a JSON file or database
-                        "x": 0.25, "y": 0.25, "width": 0.5, "height": 0.5,
-                        "perspective": "flat"  # flat, perspective, curved
-                    }
-                })
 
 # Root route renders the index.html
 @app.route('/')
@@ -77,19 +50,9 @@ def remove_background():
             if file.filename == '':
                 return jsonify({"error": "No file selected"}), 400
             image_bytes = file.read()
-        elif request.is_json:
-            # Handling base64 encoded image or selected layer
-            if 'image' in request.json:
-                image_bytes = base64.b64decode(request.json['image'])
-            elif 'layerId' in request.json:
-                # Get layer by ID (from in-memory storage)
-                layer_id = request.json['layerId']
-                layer = next((l for l in layers if l["id"] == layer_id), None)
-                if not layer:
-                    return jsonify({"error": f"Layer {layer_id} not found"}), 404
-                image_bytes = layer["image"]
-            else:
-                return jsonify({"error": "No image or layer provided"}), 400
+        elif request.is_json and 'image' in request.json:
+            # Handling base64 encoded image
+            image_bytes = base64.b64decode(request.json['image'])
         else:
             return jsonify({"error": "No image provided"}), 400
         
@@ -110,10 +73,7 @@ def remove_background():
 
         # Return either raw image data or base64 depending on request format
         if request.is_json:
-            return jsonify({
-                "image": base64.b64encode(processed_image).decode('utf-8'),
-                "layerId": layer_id
-            })
+            return jsonify({"image": base64.b64encode(processed_image).decode('utf-8')})
         else:
             return send_file(
                 BytesIO(processed_image),
@@ -154,98 +114,93 @@ def generate_image():
         # Add to assets
         assets.append(processed_image)
 
-        return jsonify({
-            "image": base64.b64encode(processed_image).decode('utf-8'),
-            "layerId": layer_id
-        })
+        return jsonify({"image": base64.b64encode(processed_image).decode('utf-8')})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/apply-mockup', methods=['POST'])
-def apply_mockup():
-    """Apply a design to a mockup template"""
-    data = request.json
-    if not data or 'designLayerId' not in data or 'mockupId' not in data:
-        return jsonify({"error": "Design layer ID and mockup ID required"}), 400
-    
+@app.route('/combine-images', methods=['POST'])
+def combine_images():
+    """Combine multiple images with their transformations applied"""
     try:
-        # Get the design layer
-        design_layer_id = data['designLayerId']
-        design_layer = next((l for l in layers if l["id"] == design_layer_id), None)
-        if not design_layer:
-            return jsonify({"error": f"Design layer {design_layer_id} not found"}), 404
+        data = request.json
+        if not data or 'layers' not in data:
+            return jsonify({"error": "No layers provided"}), 400
         
-        # Get the mockup
-        mockup_id = data['mockupId']
-        if mockup_id >= len(mockups):
-            return jsonify({"error": f"Mockup {mockup_id} not found"}), 404
-        mockup = mockups[mockup_id]
+        # Create a blank canvas with the specified dimensions
+        width = data.get('width', 1200)
+        height = data.get('height', 800)
+        background_color = data.get('backgroundColor', (0, 0, 0, 0))  # Transparent by default
         
-        # Open images with PIL
-        design_img = Image.open(BytesIO(design_layer["image"]))
-        mockup_img = Image.open(BytesIO(mockup["image"]))
+        # Create a new image with transparency
+        combined_image = Image.new('RGBA', (width, height), background_color)
         
-        # Apply design to mockup using smart object area
-        smart_area = mockup["smart_object_area"]
-        mockup_width, mockup_height = mockup_img.size
+        # Process each layer
+        for layer_data in data['layers']:
+            # Skip if layer is not visible
+            if not layer_data.get('visible', True):
+                continue
+                
+            # Get the layer image data
+            if 'imageData' in layer_data:
+                # Image data provided as base64
+                layer_image_bytes = base64.b64decode(layer_data['imageData'])
+                layer_image = Image.open(BytesIO(layer_image_bytes))
+            elif 'assetId' in layer_data and layer_data['assetId'] < len(assets):
+                # Use an asset from our stored assets
+                layer_image = Image.open(BytesIO(assets[layer_data['assetId']]))
+            else:
+                continue
+                
+            # Apply transformations
+            # 1. Resize
+            original_width, original_height = layer_image.size
+            new_width = int(original_width * layer_data.get('scale', 1.0))
+            new_height = int(original_height * layer_data.get('scale', 1.0))
+            if new_width != original_width or new_height != original_height:
+                layer_image = layer_image.resize((new_width, new_height), Image.LANCZOS)
+                
+            # 2. Rotate (if rotation is provided)
+            if 'rotation' in layer_data and layer_data['rotation'] != 0:
+                layer_image = layer_image.rotate(
+                    -float(layer_data['rotation']) * (180/3.14159),  # Convert radians to degrees
+                    expand=True,
+                    resample=Image.BICUBIC
+                )
+                
+            # 3. Position (centered at the specified coordinates)
+            position_x = layer_data.get('x', width/2)
+            position_y = layer_data.get('y', height/2)
+            paste_x = int(position_x - layer_image.width/2)
+            paste_y = int(position_y - layer_image.height/2)
+            
+            # If the layer has transparency, we need to use alpha compositing
+            if layer_image.mode == 'RGBA':
+                # Create a temporary transparent image for this layer
+                temp = Image.new('RGBA', combined_image.size, (0, 0, 0, 0))
+                temp.paste(layer_image, (paste_x, paste_y), layer_image)
+                combined_image = Image.alpha_composite(combined_image, temp)
+            else:
+                # Convert to RGBA to ensure compatibility
+                layer_image = layer_image.convert('RGBA')
+                temp = Image.new('RGBA', combined_image.size, (0, 0, 0, 0))
+                temp.paste(layer_image, (paste_x, paste_y), layer_image)
+                combined_image = Image.alpha_composite(combined_image, temp)
         
-        # Calculate smart object area in pixels
-        smart_x = int(smart_area["x"] * mockup_width)
-        smart_y = int(smart_area["y"] * mockup_height)
-        smart_width = int(smart_area["width"] * mockup_width)
-        smart_height = int(smart_area["height"] * mockup_height)
+        # Convert the final image to PNG
+        output = BytesIO()
+        combined_image.save(output, format='PNG')
+        output.seek(0)
         
-        # Resize design to fit smart object area
-        design_resized = design_img.resize((smart_width, smart_height))
-        
-        # If perspective or curved mockup, would apply transformation here
-        # For this example, using simple paste
-        mockup_img.paste(design_resized, (smart_x, smart_y), design_resized if design_resized.mode == 'RGBA' else None)
-        
-        # Convert to PNG
-        result_bytes = BytesIO()
-        mockup_img.save(result_bytes, format='PNG')
-        result_image = result_bytes.getvalue()
-        
-        # Create new layer with the result
-        layer_id = len(layers) + 1
-        layers.append({
-            "id": layer_id,
-            "image": result_image,
-            "position": {"x": 0, "y": 0},
-            "scale": 1.0
-        })
-        
-        # Add to assets
-        assets.append(result_image)
-        
-        return jsonify({
-            "image": base64.b64encode(result_image).decode('utf-8'),
-            "layerId": layer_id
-        })
+        # Return the combined image
+        return send_file(
+            output,
+            mimetype='image/png',
+            download_name='combined_image.png'
+        )
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-@app.route('/mockups', methods=['GET'])
-def get_mockups():
-    """Get all available mockups"""
-    return jsonify([{
-        "id": mockup["id"],
-        "name": mockup["name"],
-        "preview": f"/mockup/{mockup['id']}/preview"
-    } for mockup in mockups])
-
-@app.route('/mockup/<int:mockup_id>/preview', methods=['GET'])
-def get_mockup_preview(mockup_id):
-    """Get mockup preview image"""
-    if mockup_id >= len(mockups):
-        return jsonify({"error": "Mockup not found"}), 404
-    return send_file(
-        BytesIO(mockups[mockup_id]["image"]),
-        mimetype='image/png'
-    )
 
 @app.route('/layers', methods=['GET'])
 def get_layers():
@@ -276,5 +231,4 @@ def get_asset(asset_id):
 
 if __name__ == '__main__':
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-    init_mockups()  # Initialize mockup templates
     app.run(host='0.0.0.0', port=5000, debug=True)
