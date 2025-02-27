@@ -1,0 +1,9 @@
+/.env
+/apikey.txt
+/node_modules
+/output.css
+/package-lock.json
+/package.json
+/style.css
+/tailwind.config.js
+/uploads

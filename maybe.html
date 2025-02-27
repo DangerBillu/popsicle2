@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Popsicle</title>
+  <!-- Using Tailwind from CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Optional: Hide scrollbars on canvas container */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-[#0f0f0f] text-white font-['Inter'] flex flex-col h-screen overflow-hidden p-4">
+
+  <!-- Left Navigation Bar -->
+  <nav class="fixed left-4 top-4 h-[calc(100vh-32px)] w-12 bg-[#212121] border border-neutral-800 flex flex-col items-center py-4 space-y-6 rounded-2xl overflow-visible">
+    <!-- Upload -->
+    <button class="relative text-neutral-400 hover:text-white transition-colors group cursor-pointer" onclick="document.getElementById('file-upload').click()">
+      <span class="absolute left-full ml-3 px-2 py-1 bg-[#212121] text-sm rounded-md invisible group-hover:visible transition-opacity duration-300 whitespace-nowrap shadow-lg">
+        Upload
+      </span>
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+      </svg>
+    </button>
+
+    <!-- Layers -->
+    <button class="relative text-neutral-400 hover:text-white transition-colors group cursor-pointer" onclick="showPanel('layers')">
+      <span class="absolute left-full ml-3 px-2 py-1 bg-[#212121] text-sm rounded-md invisible group-hover:visible transition-opacity duration-300 whitespace-nowrap shadow-lg">
+        Layers
+      </span>
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+      </svg>
+    </button>
+
+    <!-- Assets (formerly Marketplace) -->
+    <button class="relative text-neutral-400 hover:text-white transition-colors group cursor-pointer" onclick="showPanel('assets')">
+      <span class="absolute left-full ml-3 px-2 py-1 bg-[#212121] text-sm rounded-md invisible group-hover:visible transition-opacity duration-300 whitespace-nowrap shadow-lg">
+        Assets
+      </span>
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+      </svg>
+    </button>
+
+    <!-- Adjustments -->
+    <button class="relative text-neutral-400 hover:text-white transition-colors group cursor-pointer" onclick="showPanel('adjustments')">
+      <span class="absolute left-full ml-3 px-2 py-1 bg-[#212121] text-sm rounded-md invisible group-hover:visible transition-opacity duration-300 whitespace-nowrap shadow-lg">
+        Adjustments
+      </span>
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+      </svg>
+    </button>
+
+    <!-- Remove Background -->
+    <button class="relative text-neutral-400 hover:text-white transition-colors group cursor-pointer" onclick="removeBackground()">
+      <span class="absolute left-full ml-3 px-2 py-1 bg-[#212121] text-sm rounded-md invisible group-hover:visible transition-opacity duration-300 whitespace-nowrap shadow-lg">
+        Remove BG
+      </span>
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+      </svg>
+    </button>
+
+    <!-- Download -->
+    <button class="relative text-neutral-400 hover:text-white transition-colors group cursor-pointer" onclick="downloadCanvas()">
+      <span class="absolute left-full ml-3 px-2 py-1 bg-[#212121] text-sm rounded-md invisible group-hover:visible transition-opacity duration-300 whitespace-nowrap shadow-lg">
+        Download
+      </span>
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+      </svg>
+    </button>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="pl-20 pr-4 flex h-full">
+    <!-- Canvas Area -->
+    <div class="flex-1 relative overflow-hidden rounded-2xl bg-[#0f0f0f] border border-neutral-800">
+      <canvas id="mainCanvas" class="w-full h-full"></canvas>
+      <div class="absolute top-4 left-1/2 -translate-x-1/2 w-full max-w-3xl">
+        <textarea 
+          placeholder="Write a prompt" 
+          rows="1"
+          class="bg-[#212121] min-h-[56px] w-full px-6 py-4 pr-24 outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-300 placeholder:text-gray-400 resize-none overflow-hidden rounded-[28px] focus:rounded-3xl"
+        ></textarea>
+        <div class="absolute top-1/2 right-4 -translate-y-1/2 group">
+          <button class="relative inline-flex items-center justify-center p-px font-semibold leading-6 text-white bg-neutral-900 shadow-2xl cursor-pointer rounded-full shadow-emerald-900 transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 hover:shadow-emerald-600 text-sm">
+            <span class="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-500 via-cyan-500 to-sky-600 p-[2px] opacity-0 transition-opacity duration-500 group-hover:opacity-100"></span>
+            <span class="relative z-10 block p-2 rounded-full bg-neutral-950">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 transition-all duration-500 group-hover:translate-x-1 group-hover:text-emerald-300">
+                <path d="M16.172 11l-5.364-5.364 1.414-1.414L20 12l-7.778 7.778-1.414-1.414L16.172 13H4v-2z"></path>
+              </svg>
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panels -->
+    <div class="w-80 bg-[#212121] border-l border-neutral-800 h-full overflow-y-auto rounded-2xl ml-4">
+      <!-- Assets Panel -->
+      <div id="assets-panel" class="p-6">
+        <h2 class="text-white font-medium text-lg mb-4">Assets</h2>
+        <div class="space-y-4">
+          <!-- File Upload Area -->
+          <div class="border-2 border-dashed border-neutral-700 rounded-xl p-4 text-center hover:border-emerald-500 transition-colors">
+            <input type="file" id="asset-upload" accept="image/*" multiple class="hidden" onchange="handleAssetUpload(event)">
+            <button onclick="document.getElementById('asset-upload').click()" class="w-full">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 mx-auto mb-2 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+              </svg>
+              <p class="text-sm text-neutral-400">Drop files here or click to upload</p>
+            </button>
+          </div>
+          <!-- Assets Grid (persisted across tab switches) -->
+          <div id="assets-grid" class="grid grid-cols-2 gap-3">
+            <!-- Dynamically added asset elements will appear here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Layers Panel -->
+      <div id="layers-panel" class="hidden p-6">
+        <h2 class="text-white font-medium text-lg mb-4">Layers</h2>
+        <div id="layers-list" class="space-y-3">
+          <!-- Dynamically added layers will be listed here -->
+        </div>
+      </div>
+
+      <!-- Adjustments Panel -->
+      <div id="adjustments-panel" class="hidden p-6">
+        <h2 class="text-white font-medium text-lg mb-4">Adjustments</h2>
+        <div class="space-y-4">
+          <div class="space-y-2">
+            <label class="text-sm text-neutral-400">Brightness</label>
+            <input type="range" min="0" max="200" class="w-full accent-emerald-500">
+          </div>
+          <div class="space-y-2">
+            <label class="text-sm text-neutral-400">Contrast</label>
+            <input type="range" min="0" max="200" class="w-full accent-emerald-500">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script>
+    /* -------------------------------
+       GLOBAL VARIABLES & INITIAL SETUP
+    ------------------------------- */
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d');
+    let currentImage = null;
+    let layers = [];  // Each layer: { id, image, visible, name, x, y, scale, rotation }
+    let layerCounter = 0;
+
+    // Global view parameters for panning & zooming
+    let viewOffsetX = 0, viewOffsetY = 0, viewScale = 1;
+    let isPanning = false, panStart = { x: 0, y: 0 };
+
+    function resizeCanvas() {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      redrawCanvas();
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    /* -------------------------------
+       PANEL SWITCHING (Tabs)
+    ------------------------------- */
+    function showPanel(panelId) {
+      // Hide all panels
+      ['assets', 'layers', 'adjustments'].forEach(id => {
+        document.getElementById(id + '-panel').classList.add('hidden');
+      });
+      // Show requested panel
+      document.getElementById(panelId + '-panel').classList.remove('hidden');
+
+      // Refresh layers list if layers panel is shown
+      if(panelId === 'layers'){
+        updateLayersList();
+      }
+    }
+
+    /* -------------------------------
+       CANVAS PANNING (Infinite-like Canvas)
+    ------------------------------- */
+    canvas.addEventListener('mousedown', (e) => {
+      isPanning = true;
+      panStart.x = e.clientX;
+      panStart.y = e.clientY;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!isPanning) return;
+      const dx = e.clientX - panStart.x;
+      const dy = e.clientY - panStart.y;
+      viewOffsetX += dx;
+      viewOffsetY += dy;
+      panStart.x = e.clientX;
+      panStart.y = e.clientY;
+      redrawCanvas();
+    });
+
+    canvas.addEventListener('mouseup', () => { isPanning = false; });
+    canvas.addEventListener('mouseleave', () => { isPanning = false; });
+
+    /* -------------------------------
+       REDRAW CANVAS & LAYER DRAWING
+    ------------------------------- */
+    function redrawCanvas() {
+      // Clear and set global transform for panning & zooming
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.setTransform(viewScale, 0, 0, viewScale, viewOffsetX, viewOffsetY);
+      
+      // Draw each layer in order (lower layers first)
+      layers.forEach(layer => {
+        if(layer.visible) {
+          ctx.save();
+          ctx.translate(layer.x, layer.y);
+          ctx.rotate(layer.rotation);
+          ctx.scale(layer.scale, layer.scale);
+          // Draw image centered at (0,0)
+          ctx.drawImage(layer.image, -layer.image.width / 2, -layer.image.height / 2);
+          ctx.restore();
+        }
+      });
+    }
+
+    /* -------------------------------
+       IMAGE & LAYER HANDLING
+    ------------------------------- */
+    // When dropping an image file or asset onto the canvas:
+    canvas.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      canvas.style.border = '2px dashed #10b981';
+    });
+
+    canvas.addEventListener('dragleave', () => {
+      canvas.style.border = 'none';
+    });
+
+    canvas.addEventListener('drop', (e) => {
+      e.preventDefault();
+      canvas.style.border = 'none';
+      
+      if(e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
+        if(file) handleImageUpload(file);
+      } else {
+        const imgSrc = e.dataTransfer.getData('text/plain');
+        if(imgSrc) {
+          const img = new Image();
+          img.onload = () => { addNewLayer(img); redrawCanvas(); };
+          img.src = imgSrc;
+        }
+      }
+    });
+
+    // File Upload (for canvas drop or assets)
+    function handleImageUpload(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => { addNewLayer(img); redrawCanvas(); };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Add a new layer with default transformation (placed in center of current view)
+    function addNewLayer(img) {
+      layerCounter++;
+      // Determine center of current view (accounting for panning/zoom)
+      const centerX = (canvas.width / 2 - viewOffsetX) / viewScale;
+      const centerY = (canvas.height / 2 - viewOffsetY) / viewScale;
+      const layer = {
+        id: layerCounter,
+        image: img,
+        visible: true,
+        name: `Layer ${layerCounter}`,
+        x: centerX,
+        y: centerY,
+        scale: 1,
+        rotation: 0
+      };
+      layers.push(layer); // New layers on top
+      updateLayersList();
+    }
+
+    // Remove background (placeholder logic)
+    function removeBackground() {
+      // For now, simply clear the canvas; background removal logic goes here
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // Download current canvas view as an image
+    function downloadCanvas() {
+      const link = document.createElement('a');
+      link.download = 'design.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    }
+
+    /* -------------------------------
+       ASSET MANAGEMENT
+    ------------------------------- */
+    function handleAssetUpload(event) {
+      const files = event.target.files;
+      const assetsGrid = document.getElementById('assets-grid');
+      for(const file of files) {
+        if(file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const assetElement = createAssetElement(e.target.result, file.name);
+            // Insert at beginning so latest assets show up first
+            assetsGrid.insertBefore(assetElement, assetsGrid.firstChild);
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+    }
+
+    function createAssetElement(src, name) {
+      const div = document.createElement('div');
+      div.className = 'group relative bg-neutral-800/50 rounded-xl p-2 hover:bg-neutral-800 transition-colors cursor-move';
+      div.draggable = true;
+      div.innerHTML = `
+        <img src="${src}" alt="${name}" class="w-full h-24 object-cover rounded-lg mb-2">
+        <p class="text-xs text-neutral-400 truncate">${name}</p>
+        <button onclick="deleteAsset(this)" class="absolute top-1 right-1 p-1 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      `;
+      div.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', src);
+      });
+      return div;
+    }
+
+    function deleteAsset(button) {
+      button.closest('div').remove();
+    }
+
+    /* -------------------------------
+       LAYER PANEL & HIERARCHY CONTROLS
+    ------------------------------- */
+    function updateLayersList() {
+      const layersList = document.getElementById('layers-list');
+      layersList.innerHTML = '';
+      // Display layers in reverse order so top layer appears first
+      [...layers].reverse().forEach(layer => {
+        const layerElement = document.createElement('div');
+        layerElement.className = 'bg-neutral-800/50 backdrop-blur-sm rounded-xl p-3 flex items-center justify-between group hover:bg-neutral-800 transition-colors';
+        layerElement.innerHTML = `
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-neutral-700 flex items-center justify-center overflow-hidden">
+              <img src="${layer.image.src}" class="w-full h-full object-cover">
+            </div>
+            <span class="text-sm text-neutral-200">${layer.name}</span>
+          </div>
+          <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onclick="toggleLayerVisibility(${layer.id})" class="text-neutral-400 hover:text-white" title="Toggle Visibility">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </button>
+            <button onclick="moveLayerUp(${layer.id})" class="text-neutral-400 hover:text-white" title="Move Up">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5 5 5M12 4v12" />
+              </svg>
+            </button>
+            <button onclick="moveLayerDown(${layer.id})" class="text-neutral-400 hover:text-white" title="Move Down">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 13l-5 5-5-5M12 20V8" />
+              </svg>
+            </button>
+            <button onclick="deleteLayer(${layer.id})" class="text-neutral-400 hover:text-white" title="Delete Layer">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+        `;
+        layersList.appendChild(layerElement);
+      });
+    }
+
+    function toggleLayerVisibility(layerId) {
+      const layer = layers.find(l => l.id === layerId);
+      if(layer) {
+        layer.visible = !layer.visible;
+        redrawCanvas();
+      }
+    }
+
+    function deleteLayer(layerId) {
+      layers = layers.filter(l => l.id !== layerId);
+      redrawCanvas();
+      updateLayersList();
+    }
+
+    function moveLayerUp(layerId) {
+      const index = layers.findIndex(l => l.id === layerId);
+      if(index < layers.length - 1) {
+        [layers[index], layers[index+1]] = [layers[index+1], layers[index]];
+        redrawCanvas();
+        updateLayersList();
+      }
+    }
+
+    function moveLayerDown(layerId) {
+      const index = layers.findIndex(l => l.id === layerId);
+      if(index > 0) {
+        [layers[index], layers[index-1]] = [layers[index-1], layers[index]];
+        redrawCanvas();
+        updateLayersList();
+      }
+    }
+
+    /* -------------------------------
+       Textarea Auto-resize
+    ------------------------------- */
+    document.querySelector('textarea').addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = this.scrollHeight + 'px';
+    });
+  </script>
+</body>
+</html>
