@@ -119,6 +119,89 @@ def generate_image():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/combine-images', methods=['POST'])
+def combine_images():
+    """Combine multiple images with their transformations applied"""
+    try:
+        data = request.json
+        if not data or 'layers' not in data:
+            return jsonify({"error": "No layers provided"}), 400
+        
+        # Create a blank canvas with the specified dimensions
+        width = data.get('width', 1200)
+        height = data.get('height', 800)
+        background_color = data.get('backgroundColor', (0, 0, 0, 0))  # Transparent by default
+        
+        # Create a new image with transparency
+        combined_image = Image.new('RGBA', (width, height), background_color)
+        
+        # Process each layer
+        for layer_data in data['layers']:
+            # Skip if layer is not visible
+            if not layer_data.get('visible', True):
+                continue
+                
+            # Get the layer image data
+            if 'imageData' in layer_data:
+                # Image data provided as base64
+                layer_image_bytes = base64.b64decode(layer_data['imageData'])
+                layer_image = Image.open(BytesIO(layer_image_bytes))
+            elif 'assetId' in layer_data and layer_data['assetId'] < len(assets):
+                # Use an asset from our stored assets
+                layer_image = Image.open(BytesIO(assets[layer_data['assetId']]))
+            else:
+                continue
+                
+            # Apply transformations
+            # 1. Resize
+            original_width, original_height = layer_image.size
+            new_width = int(original_width * layer_data.get('scale', 1.0))
+            new_height = int(original_height * layer_data.get('scale', 1.0))
+            if new_width != original_width or new_height != original_height:
+                layer_image = layer_image.resize((new_width, new_height), Image.LANCZOS)
+                
+            # 2. Rotate (if rotation is provided)
+            if 'rotation' in layer_data and layer_data['rotation'] != 0:
+                layer_image = layer_image.rotate(
+                    -float(layer_data['rotation']) * (180/3.14159),  # Convert radians to degrees
+                    expand=True,
+                    resample=Image.BICUBIC
+                )
+                
+            # 3. Position (centered at the specified coordinates)
+            position_x = layer_data.get('x', width/2)
+            position_y = layer_data.get('y', height/2)
+            paste_x = int(position_x - layer_image.width/2)
+            paste_y = int(position_y - layer_image.height/2)
+            
+            # If the layer has transparency, we need to use alpha compositing
+            if layer_image.mode == 'RGBA':
+                # Create a temporary transparent image for this layer
+                temp = Image.new('RGBA', combined_image.size, (0, 0, 0, 0))
+                temp.paste(layer_image, (paste_x, paste_y), layer_image)
+                combined_image = Image.alpha_composite(combined_image, temp)
+            else:
+                # Convert to RGBA to ensure compatibility
+                layer_image = layer_image.convert('RGBA')
+                temp = Image.new('RGBA', combined_image.size, (0, 0, 0, 0))
+                temp.paste(layer_image, (paste_x, paste_y), layer_image)
+                combined_image = Image.alpha_composite(combined_image, temp)
+        
+        # Convert the final image to PNG
+        output = BytesIO()
+        combined_image.save(output, format='PNG')
+        output.seek(0)
+        
+        # Return the combined image
+        return send_file(
+            output,
+            mimetype='image/png',
+            download_name='combined_image.png'
+        )
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/layers', methods=['GET'])
 def get_layers():
     """Get all layers"""
