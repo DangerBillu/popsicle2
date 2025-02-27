@@ -94,11 +94,7 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
       </svg>
     </button>
-    <!-- <button class="nav-btn" title="Mockups" data-action="mockups" onclick="handleNavAction('mockups')">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      </svg>
-    </button> -->
+
     <button class="nav-btn" title="Download" data-action="download" onclick="handleNavAction('download')">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -122,15 +118,6 @@
         <div class="resize-handle handle-sw" data-handle="sw"></div>
         <div class="resize-handle handle-w" data-handle="w"></div>
         <div class="rotate-handle" data-handle="rotate"></div>
-      </div>
-      <div class="absolute bottom-4 left-1/2 -translate-x-1/2">
-        <button id="mockup-button" 
-          class="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-medium px-4 py-2 rounded-full flex items-center gap-2 hover:shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
-          </svg>
-          Apply Mockup
-        </button>
       </div>
       <div class="absolute top-4 left-1/2 -translate-x-1/2 w-full max-w-3xl">
         <textarea 
@@ -617,103 +604,46 @@
 
     // ---------------- Backend integration functions ----------------
 
-    document.querySelector('[data-action="removeBg"]').addEventListener('click', async () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        
-        input.onchange = async (e) => {
-            const file = e.target.files[0];
-            const formData = new FormData();
-            formData.append('file', file);
-            
-            try {
-                // Show loading indicator
-                document.body.style.cursor = 'wait';
-                
-                const response = await fetch('/remove-bg', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || 'Background removal failed');
-                }
-                
-                const blob = await response.blob();
-                const img = new Image();
-                img.onload = () => {
-                    addNewLayer(img);
-                    redrawCanvas();
-                    
-                    // Add to assets grid
-                    const assetsGrid = document.getElementById('assets-grid');
-                    const assetElement = createAssetElement(img.src, "Removed BG");
-                    assetsGrid.insertBefore(assetElement, assetsGrid.firstChild);
-                };
-                img.src = URL.createObjectURL(blob);
-                
-            } catch (error) {
-                console.error('Background removal failed:', error);
-                alert('Background removal failed: ' + error.message);
-            } finally {
-                document.body.style.cursor = 'default';
-            }
-        };
-        
-        input.click();
-    });
+    // When Remove Background is pressed, send canvas image to backend
+    async function handleRemoveBg() {
+      const dataURL = canvas.toDataURL();
+      const base64Image = dataURL.split(',')[1];
+      const response = await fetch('/remove-bg', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ image: base64Image })
+      });
+      const result = await response.json();
+      if (result.image) {
+         const img = new Image();
+         img.onload = () => { addNewLayer(img); redrawCanvas(); addAsset(img, "Removed BG"); };
+         img.src = "data:image/png;base64," + result.image;
+      } else {
+         alert("Background removal failed");
+      }
+    }
 
-    // Handle prompt generation 
-    document.getElementById('prompt-arrow').addEventListener('click', async () => {
-        const prompt = document.querySelector('textarea').value.trim();
-        if (!prompt) {
-            alert('Please enter a prompt before generating an image.');
-            return;
-        }
-        
-        try {
-            // Show loading indicator
-            document.body.style.cursor = 'wait';
-            
-            const response = await fetch('/generate-image', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ prompt })
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Image generation failed');
-            }
-            
-            const data = await response.json();
-            
-            if (data.image) {
-                const img = new Image();
-                img.onload = () => {
-                    addNewLayer(img);
-                    redrawCanvas();
-                    
-                    // Add to assets grid
-                    const assetsGrid = document.getElementById('assets-grid');
-                    const assetElement = createAssetElement(img.src, `Generated: ${prompt.substring(0, 20)}...`);
-                    assetsGrid.insertBefore(assetElement, assetsGrid.firstChild);
-                };
-                img.src = "data:image/png;base64," + data.image;
-            } else {
-                throw new Error('No image data received');
-            }
-            
-        } catch (error) {
-            console.error('Image generation failed:', error);
-            alert('Image generation failed: ' + error.message);
-        } finally {
-            document.body.style.cursor = 'default';
-        }
-    });
-
+    // When prompt arrow is pressed, send prompt to backend
+    async function handleGenerate() {
+      const promptText = document.querySelector('textarea').value;
+      if (!promptText.trim()) {
+        alert("Please enter a prompt.");
+        return;
+      }
+      const response = await fetch('/generate', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ prompt: promptText })
+      });
+      const result = await response.json();
+      if (result.image) {
+         const img = new Image();
+         img.onload = () => { addNewLayer(img); redrawCanvas(); addAsset(img, "Generated Image"); };
+         img.src = "data:image/png;base64," + result.image;
+      } else {
+         alert("Image generation failed");
+      }
+    }
 
     // Helper to add an asset to the assets grid
     function addAsset(img, name) {
@@ -733,421 +663,14 @@
         case 'download': downloadCanvas(); break;
       }
     }
-    // Apply mockup functionality
-    document.getElementById('mockup-button').addEventListener('click', () => {
-      if (layers.length < 2) {
-        alert('You need at least two layers (a base image and a design) to apply a mockup.');
-        return;
-      }
-      
-      showMockupDialog();
-    });
 
-    // Create and show mockup dialog
-    function showMockupDialog() {
-      // Create a modal dialog
-      const dialog = document.createElement('div');
-      dialog.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-50';
-      
-      // Create dialog content
-      dialog.innerHTML = `
-        <div class="bg-[#212121] rounded-xl p-6 max-w-md w-full">
-          <h2 class="text-xl font-medium mb-4">Apply Mockup</h2>
-          
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm text-neutral-400 mb-1">Base Layer (Background)</label>
-              <select id="base-layer" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2">
-                ${layers.map(layer => `<option value="${layer.id}">${layer.name}</option>`).join('')}
-              </select>
-            </div>
-            
-            <div>
-              <label class="block text-sm text-neutral-400 mb-1">Design Layer (Foreground)</label>
-              <select id="design-layer" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2">
-                ${layers.map(layer => `<option value="${layer.id}">${layer.name}</option>`).join('')}
-              </select>
-            </div>
-          </div>
-          
-          <div class="flex justify-end gap-3 mt-6">
-            <button id="cancel-mockup" class="px-4 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700">Cancel</button>
-            <button id="apply-mockup" class="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-medium">Apply</button>
-          </div>
-        </div>
-      `;
-      
-      document.body.appendChild(dialog);
-      
-      // Handle dialog buttons
-      document.getElementById('cancel-mockup').addEventListener('click', () => {
-        dialog.remove();
-      });
-      
-      document.getElementById('apply-mockup').addEventListener('click', async () => {
-        const baseLayerId = parseInt(document.getElementById('base-layer').value);
-        const designLayerId = parseInt(document.getElementById('design-layer').value);
-        
-        if (baseLayerId === designLayerId) {
-          alert('Please select different layers for base and design.');
-          return;
-        }
-        
-        try {
-          await applyMockup(baseLayerId, designLayerId);
-          dialog.remove();
-        } catch (error) {
-          alert('Error applying mockup: ' + error.message);
-        }
-      });
-    }
-
-    // Function to apply mockup effect
-    async function applyMockup(baseLayerId, designLayerId) {
-      // Show loading state
-      document.body.style.cursor = 'wait';
-      
-      try {
-        // Find the layer objects
-        const baseLayer = layers.find(l => l.id === baseLayerId);
-        const designLayer = layers.find(l => l.id === designLayerId);
-        
-        if (!baseLayer || !designLayer) {
-          throw new Error('Layers not found');
-        }
-        
-        // Get asset IDs from layer images
-        let baseAssetId = -1;
-        let designAssetId = -1;
-        
-        for (let i = 0; i < assets.length; i++) {
-          if (baseLayer.image.src && baseLayer.image.src.includes(`/asset/${i}`)) {
-            baseAssetId = i;
-          }
-          if (designLayer.image.src && designLayer.image.src.includes(`/asset/${i}`)) {
-            designAssetId = i;
-          }
-        }
-        
-        if (baseAssetId === -1 || designAssetId === -1) {
-          throw new Error('Asset IDs not found');
-        }
-        
-        // Get the transform information for the design layer
-        const transform = {
-          position: {
-            x: designLayer.x - baseLayer.x + (baseLayer.image.width * baseLayer.scale) / 2,
-            y: designLayer.y - baseLayer.y + (baseLayer.image.height * baseLayer.scale) / 2
-          },
-          scale: designLayer.scale / baseLayer.scale,
-          rotation: designLayer.rotation - baseLayer.rotation
-        };
-        
-        // Make API call to backend
-        const response = await fetch('/combine-images', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            baseLayerId: baseAssetId,
-            designLayerId: designAssetId,
-            transform: transform
-          })
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to apply mockup');
-        }
-        
-        const result = await response.json();
-        
-        if (result.image) {
-          // Create a new image from the combined result
-          const img = new Image();
-          img.onload = () => {
-            // Add as new layer
-            layerCounter++;
-            const layer = {
-              id: layerCounter,
-              image: img,
-              visible: true,
-              name: `Mockup ${layerCounter}`,
-              x: (canvas.width / 2 - viewOffsetX) / viewScale,
-              y: (canvas.height / 2 - viewOffsetY) / viewScale,
-              scale: 1,
-              rotation: 0
-            };
-            
-            layers.push(layer);
-            selectedLayer = layer;
-            
-            redrawCanvas();
-            updateLayersList();
-            updateResizeOverlay();
-            
-            // Add to assets grid
-            const assetsGrid = document.getElementById('assets-grid');
-            const assetElement = createAssetElement(img.src, `Mockup ${layerCounter}`);
-            assetsGrid.insertBefore(assetElement, assetsGrid.firstChild);
-          };
-          
-          img.src = "data:image/png;base64," + result.image;
-        }
-      } catch (error) {
-        console.error('Error applying mockup:', error);
-        throw error;
-      } finally {
-        document.body.style.cursor = 'default';
-      }
-    }
-
-    document.getElementById('mockup-button').addEventListener('click', () => {
-      if (layers.length < 2) {
-        alert('You need at least two layers (a base image and a design) to apply a mockup.');
-        return;
-      }
-      
-      showMockupDialog();
-    });
-
-    // Create and show mockup dialog
-    function showMockupDialog() {
-      // Create a modal dialog
-      const dialog = document.createElement('div');
-      dialog.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-50';
-      
-      // Create dialog content
-      dialog.innerHTML = `
-        <div class="bg-[#212121] rounded-xl p-6 max-w-md w-full">
-          <h2 class="text-xl font-medium mb-4">Apply Mockup</h2>
-          
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm text-neutral-400 mb-1">Base Layer (Background)</label>
-              <select id="base-layer" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2">
-                ${layers.map(layer => `<option value="${layer.id}">${layer.name}</option>`).join('')}
-              </select>
-            </div>
-            
-            <div>
-              <label class="block text-sm text-neutral-400 mb-1">Design Layer (Foreground)</label>
-              <select id="design-layer" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2">
-                ${layers.map(layer => `<option value="${layer.id}">${layer.name}</option>`).join('')}
-              </select>
-            </div>
-          </div>
-          
-          <div class="flex justify-end gap-3 mt-6">
-            <button id="cancel-mockup" class="px-4 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700">Cancel</button>
-            <button id="apply-mockup" class="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-medium">Apply</button>
-          </div>
-        </div>
-      `;
-      
-      document.body.appendChild(dialog);
-      
-      // Handle dialog buttons
-      document.getElementById('cancel-mockup').addEventListener('click', () => {
-        dialog.remove();
-      });
-      
-      document.getElementById('apply-mockup').addEventListener('click', async () => {
-        const baseLayerId = parseInt(document.getElementById('base-layer').value);
-        const designLayerId = parseInt(document.getElementById('design-layer').value);
-        
-        if (baseLayerId === designLayerId) {
-          alert('Please select different layers for base and design.');
-          return;
-        }
-        
-        try {
-          await applyMockup(baseLayerId, designLayerId);
-          dialog.remove();
-        } catch (error) {
-          alert('Error applying mockup: ' + error.message);
-        }
-      });
-    }
-
-    // Function to apply mockup effect
-    async function applyMockup(baseLayerId, designLayerId) {
-      // Show loading state
-      document.body.style.cursor = 'wait';
-      
-      try {
-        // Find the layer objects
-        const baseLayer = layers.find(l => l.id === baseLayerId);
-        const designLayer = layers.find(l => l.id === designLayerId);
-        
-        if (!baseLayer || !designLayer) {
-          throw new Error('Layers not found');
-        }
-        
-        // Get asset IDs from layer images
-        let baseAssetId = -1;
-        let designAssetId = -1;
-        
-        for (let i = 0; i < assets.length; i++) {
-          if (baseLayer.image.src && baseLayer.image.src.includes(`/asset/${i}`)) {
-            baseAssetId = i;
-          }
-          if (designLayer.image.src && designLayer.image.src.includes(`/asset/${i}`)) {
-            designAssetId = i;
-          }
-        }
-        
-        if (baseAssetId === -1 || designAssetId === -1) {
-          throw new Error('Asset IDs not found');
-        }
-        
-        // Get the transform information for the design layer
-        const transform = {
-          position: {
-            x: designLayer.x - baseLayer.x + (baseLayer.image.width * baseLayer.scale) / 2,
-            y: designLayer.y - baseLayer.y + (baseLayer.image.height * baseLayer.scale) / 2
-          },
-          scale: designLayer.scale / baseLayer.scale,
-          rotation: designLayer.rotation - baseLayer.rotation
-        };
-        
-        // Make API call to backend
-        const response = await fetch('/combine-images', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            baseLayerId: baseAssetId,
-            designLayerId: designAssetId,
-            transform: transform
-          })
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to apply mockup');
-        }
-        
-        const result = await response.json();
-        
-        if (result.image) {
-          // Create a new image from the combined result
-          const img = new Image();
-          img.onload = () => {
-            // Add as new layer
-            layerCounter++;
-            const layer = {
-              id: layerCounter,
-              image: img,
-              visible: true,
-              name: `Mockup ${layerCounter}`,
-              x: (canvas.width / 2 - viewOffsetX) / viewScale,
-              y: (canvas.height / 2 - viewOffsetY) / viewScale,
-              scale: 1,
-              rotation: 0
-            };
-            
-            layers.push(layer);
-            selectedLayer = layer;
-            
-            redrawCanvas();
-            updateLayersList();
-            updateResizeOverlay();
-            
-            // Add to assets grid
-            const assetsGrid = document.getElementById('assets-grid');
-            const assetElement = createAssetElement(img.src, `Mockup ${layerCounter}`);
-            assetsGrid.insertBefore(assetElement, assetsGrid.firstChild);
-          };
-          
-          img.src = "data:image/png;base64," + result.image;
-        }
-      } catch (error) {
-        console.error('Error applying mockup:', error);
-        throw error;
-      } finally {
-        document.body.style.cursor = 'default';
-      }
-    }
     // Initialize on window load
     window.onload = () => {
       updateLayersList();
       resizeCanvas();
+      // Attach click event for the prompt arrow
+      document.getElementById('prompt-arrow').addEventListener('click', handleGenerate);
     };
-    
-    // Handle background removal button
-    document.querySelector('[data-action="removeBg"]').addEventListener('click', async () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        
-        input.onchange = async (e) => {
-            const file = e.target.files[0];
-            const formData = new FormData();
-            formData.append('file', file);
-            
-            try {
-                const response = await fetch('/remove-bg', {
-                    method: 'POST',
-                    body: formData
-                });
-                const blob = await response.blob();
-                addImageToCanvas(blob);
-                addToAssets(blob);
-            } catch (error) {
-                console.error('Background removal failed:', error);
-            }
-        };
-        
-        input.click();
-    });
-
-    // Handle prompt generation
-    document.querySelector('.prompt-button').addEventListener('click', async () => {
-        const prompt = document.querySelector('textarea').value;
-        
-        try {
-            const response = await fetch('/generate-image', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ prompt })
-            });
-            
-            const blob = await response.blob();
-            addImageToCanvas(blob);
-            addToAssets(blob);
-        } catch (error) {
-            console.error('Image generation failed:', error);
-        }
-    });
-
-    // Helper functions
-    function addImageToCanvas(blob) {
-        const img = new Image();
-        img.src = URL.createObjectURL(blob);
-        img.onload = () => {
-            // Add to canvas implementation
-            const layer = {
-                image: img,
-                x: canvas.width/2,
-                y: canvas.height/2,
-                scale: 1
-            };
-            layers.push(layer);
-            redrawCanvas();
-        };
-    }
-
-    function addToAssets(blob) {
-        const asset = {
-            id: assets.length,
-            preview: URL.createObjectURL(blob)
-        };
-        assets.push(asset);
-        updateAssetsGrid();
-    }
   </script>
 </body>
 </html>
