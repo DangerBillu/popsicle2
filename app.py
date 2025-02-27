@@ -14,9 +14,9 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
-# Define API endpoints
 BG_REMOVAL_API = "https://api-inference.huggingface.co/models/not-lain/background-removal"
 TEXT_TO_IMAGE_API = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
+
 HEADERS = {
     "Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_TOKEN')}"
 }
