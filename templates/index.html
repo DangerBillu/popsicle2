@@ -604,46 +604,103 @@
 
     // ---------------- Backend integration functions ----------------
 
-    // When Remove Background is pressed, send canvas image to backend
-    async function handleRemoveBg() {
-      const dataURL = canvas.toDataURL();
-      const base64Image = dataURL.split(',')[1];
-      const response = await fetch('/remove-bg', {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ image: base64Image })
-      });
-      const result = await response.json();
-      if (result.image) {
-         const img = new Image();
-         img.onload = () => { addNewLayer(img); redrawCanvas(); addAsset(img, "Removed BG"); };
-         img.src = "data:image/png;base64," + result.image;
-      } else {
-         alert("Background removal failed");
-      }
-    }
+    document.querySelector('[data-action="removeBg"]').addEventListener('click', async () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                // Show loading indicator
+                document.body.style.cursor = 'wait';
+                
+                const response = await fetch('/remove-bg', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Background removal failed');
+                }
+                
+                const blob = await response.blob();
+                const img = new Image();
+                img.onload = () => {
+                    addNewLayer(img);
+                    redrawCanvas();
+                    
+                    // Add to assets grid
+                    const assetsGrid = document.getElementById('assets-grid');
+                    const assetElement = createAssetElement(img.src, "Removed BG");
+                    assetsGrid.insertBefore(assetElement, assetsGrid.firstChild);
+                };
+                img.src = URL.createObjectURL(blob);
+                
+            } catch (error) {
+                console.error('Background removal failed:', error);
+                alert('Background removal failed: ' + error.message);
+            } finally {
+                document.body.style.cursor = 'default';
+            }
+        };
+        
+        input.click();
+    });
 
-    // When prompt arrow is pressed, send prompt to backend
-    async function handleGenerate() {
-      const promptText = document.querySelector('textarea').value;
-      if (!promptText.trim()) {
-        alert("Please enter a prompt.");
-        return;
-      }
-      const response = await fetch('/generate', {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ prompt: promptText })
-      });
-      const result = await response.json();
-      if (result.image) {
-         const img = new Image();
-         img.onload = () => { addNewLayer(img); redrawCanvas(); addAsset(img, "Generated Image"); };
-         img.src = "data:image/png;base64," + result.image;
-      } else {
-         alert("Image generation failed");
-      }
-    }
+    // Handle prompt generation 
+    document.getElementById('prompt-arrow').addEventListener('click', async () => {
+        const prompt = document.querySelector('textarea').value.trim();
+        if (!prompt) {
+            alert('Please enter a prompt before generating an image.');
+            return;
+        }
+        
+        try {
+            // Show loading indicator
+            document.body.style.cursor = 'wait';
+            
+            const response = await fetch('/generate-image', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ prompt })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Image generation failed');
+            }
+            
+            const data = await response.json();
+            
+            if (data.image) {
+                const img = new Image();
+                img.onload = () => {
+                    addNewLayer(img);
+                    redrawCanvas();
+                    
+                    // Add to assets grid
+                    const assetsGrid = document.getElementById('assets-grid');
+                    const assetElement = createAssetElement(img.src, `Generated: ${prompt.substring(0, 20)}...`);
+                    assetsGrid.insertBefore(assetElement, assetsGrid.firstChild);
+                };
+                img.src = "data:image/png;base64," + data.image;
+            } else {
+                throw new Error('No image data received');
+            }
+            
+        } catch (error) {
+            console.error('Image generation failed:', error);
+            alert('Image generation failed: ' + error.message);
+        } finally {
+            document.body.style.cursor = 'default';
+        }
+    });
+
 
     // Helper to add an asset to the assets grid
     function addAsset(img, name) {
@@ -668,8 +725,6 @@
     window.onload = () => {
       updateLayersList();
       resizeCanvas();
-      // Attach click event for the prompt arrow
-      document.getElementById('prompt-arrow').addEventListener('click', handleGenerate);
     };
     
     // Handle background removal button

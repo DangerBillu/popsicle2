@@ -43,16 +43,20 @@ def index():
 @app.route('/remove-bg', methods=['POST'])
 def remove_background():
     """Handle background removal using Hugging Face model"""
-    if 'file' not in request.files:
-        return jsonify({"error": "No file provided"}), 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({"error": "No file selected"}), 400
-
     try:
+        if 'file' in request.files:
+            # Handling file upload from form
+            file = request.files['file']
+            if file.filename == '':
+                return jsonify({"error": "No file selected"}), 400
+            image_bytes = file.read()
+        elif request.is_json and 'image' in request.json:
+            # Handling base64 encoded image
+            image_bytes = base64.b64decode(request.json['image'])
+        else:
+            return jsonify({"error": "No image provided"}), 400
+        
         # Process image through Hugging Face API
-        image_bytes = file.read()
         processed_image = query_huggingface_api(BG_REMOVAL_API, data=image_bytes)
         
         # Create new layer
@@ -67,11 +71,15 @@ def remove_background():
         # Add to assets
         assets.append(processed_image)
 
-        return send_file(
-            BytesIO(processed_image),
-            mimetype='image/png',
-            download_name=f'layer_{layer_id}.png'
-        )
+        # Return either raw image data or base64 depending on request format
+        if request.is_json:
+            return jsonify({"image": base64.b64encode(processed_image).decode('utf-8')})
+        else:
+            return send_file(
+                BytesIO(processed_image),
+                mimetype='image/png',
+                download_name=f'layer_{layer_id}.png'
+            )
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -106,11 +114,7 @@ def generate_image():
         # Add to assets
         assets.append(processed_image)
 
-        return send_file(
-            BytesIO(processed_image),
-            mimetype='image/png',
-            download_name=f'generated_{layer_id}.png'
-        )
+        return jsonify({"image": base64.b64encode(processed_image).decode('utf-8')})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
