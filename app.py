@@ -6,15 +6,16 @@ from flask import Flask, request, jsonify, send_file, render_template
 from dotenv import load_dotenv
 from PIL import Image
 from flask_cors import CORS
+import cv2
+import numpy as np
+from skimage.exposure import match_histograms
 
-# Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
-# Use the correct endpoint for the Space
 BG_REMOVAL_API = "https://hf.space/embed/not-lain/background-removal/api/predict/"
 TEXT_TO_IMAGE_API = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
 
@@ -22,12 +23,11 @@ HEADERS = {
     "Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_TOKEN')}"
 }
 
-# In-memory storage for layers and assets (replace with database in production)
+# In-memory storage for layers and assets (for demonstration)
 layers = []
 assets = []
 
 def query_huggingface_api(api_url, **kwargs):
-    # If sending JSON, set the content type header
     local_headers = HEADERS.copy()
     if "json" in kwargs:
         local_headers["Content-Type"] = "application/json"
@@ -42,7 +42,6 @@ def index():
 
 @app.route('/remove-bg', methods=['POST'])
 def remove_background():
-    """Handle background removal using the Hugging Face Space API"""
     try:
         if 'file' in request.files:
             file = request.files['file']
@@ -54,14 +53,11 @@ def remove_background():
         else:
             return jsonify({"error": "No image provided"}), 400
 
-        # Encode the image in base64 and build the JSON payload
         image_b64 = base64.b64encode(image_bytes).decode("utf-8")
         payload = {"data": [image_b64]}
         
-        # Call the API using a JSON payload
         processed_image = query_huggingface_api(BG_REMOVAL_API, json=payload)
 
-        # Create new layer and asset (for in-memory storage)
         layer_id = len(layers) + 1
         layers.append({
             "id": layer_id,
@@ -71,7 +67,6 @@ def remove_background():
         })
         assets.append(processed_image)
 
-        # Return result as base64-encoded image
         return jsonify({"image": base64.b64encode(processed_image).decode("utf-8")})
     
     except Exception as e:
@@ -79,23 +74,19 @@ def remove_background():
 
 @app.route('/generate-image', methods=['POST'])
 def generate_image():
-    """Generate image from text prompt using Hugging Face model"""
     data = request.json
     if not data or 'prompt' not in data:
         return jsonify({"error": "No prompt provided"}), 400
 
     try:
-        # Generate image through Hugging Face API using JSON payload
         payload = {"inputs": data['prompt']}
         generated_image = query_huggingface_api(TEXT_TO_IMAGE_API, json=payload)
         
-        # Convert to PNG
         img = Image.open(BytesIO(generated_image))
         img_byte_arr = BytesIO()
         img.save(img_byte_arr, format='PNG')
         processed_image = img_byte_arr.getvalue()
 
-        # Create new layer
         layer_id = len(layers) + 1
         layers.append({
             "id": layer_id,
@@ -103,8 +94,6 @@ def generate_image():
             "position": {"x": 0, "y": 0},
             "scale": 1.0
         })
-
-        # Add to assets
         assets.append(processed_image)
 
         return jsonify({"image": base64.b64encode(processed_image).decode('utf-8')})
@@ -112,95 +101,49 @@ def generate_image():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/combine-images', methods=['POST'])
-def combine_images():
-    try:
-        data = request.json
-        if not data or 'layers' not in data:
-            return jsonify({"error": "No layers provided"}), 400
-        
-        width = data.get('width', 1200)
-        height = data.get('height', 800)
-        background_color = data.get('backgroundColor', (0, 0, 0, 0))
-        
-        mode = data.get("mode", "combine")
-        
-        if mode == "mockup":
-            # Expect exactly two layers: base and design
-            if len(data['layers']) < 2:
-                return jsonify({"error": "Two layers required for mockup"}), 400
-            base_layer = data['layers'][0]
-            design_layer = data['layers'][1]
-            if 'imageData' in base_layer:
-                base_image_bytes = base64.b64decode(base_layer['imageData'])
-                base_img = Image.open(BytesIO(base_image_bytes)).convert("RGBA")
-            else:
-                return jsonify({"error": "Base layer image data missing"}), 400
-            if 'imageData' in design_layer:
-                design_image_bytes = base64.b64decode(design_layer['imageData'])
-                design_img = Image.open(BytesIO(design_image_bytes)).convert("RGBA")
-            else:
-                return jsonify({"error": "Design layer image data missing"}), 400
-            
-            # Resize design image to match base image dimensions if they differ
-            if base_img.size != design_img.size:
-                design_img = design_img.resize(base_img.size, Image.LANCZOS)
-            
-            # Create a mask from the base image (use alpha channel if available, else grayscale)
-            try:
-                mask = base_img.split()[3]
-            except Exception:
-                mask = base_img.convert("L")
-            
-            # Composite the design image over the base using the mask
-            combined_img = Image.composite(design_img, base_img, mask)
-        
-        else:
-            # Regular combination for multiple layers
-            combined_img = Image.new('RGBA', (width, height), background_color)
-            for layer_data in data['layers']:
-                if not layer_data.get('visible', True):
-                    continue
-                if 'imageData' in layer_data:
-                    layer_image_bytes = base64.b64decode(layer_data['imageData'])
-                    layer_image = Image.open(BytesIO(layer_image_bytes)).convert("RGBA")
-                elif 'assetId' in layer_data:
-                    # Assuming assets is defined in memory
-                    layer_image = Image.open(BytesIO(assets[layer_data['assetId']])).convert("RGBA")
-                else:
-                    continue
-                
-                original_width, original_height = layer_image.size
-                scale = layer_data.get('scale', 1.0)
-                new_width = int(original_width * scale)
-                new_height = int(original_height * scale)
-                if new_width != original_width or new_height != original_height:
-                    layer_image = layer_image.resize((new_width, new_height), Image.LANCZOS)
-                
-                if 'rotation' in layer_data and layer_data['rotation'] != 0:
-                    layer_image = layer_image.rotate(-float(layer_data['rotation']) * (180/3.14159),
-                                                     expand=True, resample=Image.BICUBIC)
-                
-                pos_x = layer_data.get('x', width/2)
-                pos_y = layer_data.get('y', height/2)
-                paste_x = int(pos_x - layer_image.width/2)
-                paste_y = int(pos_y - layer_image.height/2)
-                temp = Image.new('RGBA', combined_img.size, (0, 0, 0, 0))
-                temp.paste(layer_image, (paste_x, paste_y), layer_image)
-                combined_img = Image.alpha_composite(combined_img, temp)
-        
-        output = BytesIO()
-        combined_img.save(output, format='PNG')
-        output.seek(0)
-        return send_file(output, mimetype='image/png', download_name='combined_image.png')
-    
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+@app.route('/apply-mockup-advanced', methods=['POST'])
+def apply_mockup_advanced():
+    if 'base' not in request.files or 'design' not in request.files:
+        return jsonify({"error": "Both base and design images are required."}), 400
 
+    base_file = request.files['base']
+    design_file = request.files['design']
+    base_bytes = base_file.read()
+    design_bytes = design_file.read()
+
+    base_img = cv2.imdecode(np.frombuffer(base_bytes, np.uint8), cv2.IMREAD_COLOR)
+    design_img = cv2.imdecode(np.frombuffer(design_bytes, np.uint8), cv2.IMREAD_COLOR)
+    if base_img is None or design_img is None:
+        return jsonify({"error": "Could not decode one or both images."}), 400
+
+    # Perspective Correction – using fixed demo destination points.
+    pts_dst = np.array([[100, 200], [400, 180], [420, 380], [120, 400]], dtype=np.float32)
+    h_design, w_design = design_img.shape[:2]
+    pts_src = np.array([[0, 0], [w_design, 0], [w_design, h_design], [0, h_design]], dtype=np.float32)
+    M, status = cv2.findHomography(pts_src, pts_dst)
+    warped_design = cv2.warpPerspective(design_img, M, (base_img.shape[1], base_img.shape[0]))
+
+    # Smart Masking – create a binary mask for the destination quadrilateral.
+    mask = np.zeros((base_img.shape[0], base_img.shape[1]), dtype=np.uint8)
+    cv2.fillConvexPoly(mask, pts_dst.astype(np.int32), 255)
+
+    # Histogram Matching – use channel_axis=-1 instead of multichannel=True.
+    warped_design_float = warped_design.astype(np.float32)
+    base_img_float = base_img.astype(np.float32)
+    matched_design = match_histograms(warped_design_float, base_img_float, channel_axis=-1)
+    matched_design = np.clip(matched_design, 0, 255).astype(np.uint8)
+
+    # Composite the matched design over the base using the mask.
+    mask_3ch = cv2.merge([mask, mask, mask]).astype(np.float32) / 255.0
+    base_float = base_img.astype(np.float32)
+    design_float = matched_design.astype(np.float32)
+    composite = (design_float * mask_3ch + base_float * (1 - mask_3ch)).astype(np.uint8)
+
+    retval, buffer = cv2.imencode('.png', composite)
+    return send_file(BytesIO(buffer.tobytes()), mimetype='image/png', download_name='advanced_mockup.png')
 
 @app.route('/layers', methods=['GET'])
 def get_layers():
-    """Get all layers"""
     return jsonify([{
         "id": layer['id'],
         "position": layer['position'],
@@ -209,7 +152,6 @@ def get_layers():
 
 @app.route('/assets', methods=['GET'])
 def get_assets():
-    """Get all assets"""
     return jsonify([{
         "id": idx,
         "preview": f"/asset/{idx}"
@@ -217,13 +159,9 @@ def get_assets():
 
 @app.route('/asset/<int:asset_id>', methods=['GET'])
 def get_asset(asset_id):
-    """Get specific asset"""
     if asset_id >= len(assets):
         return jsonify({"error": "Asset not found"}), 404
-    return send_file(
-        BytesIO(assets[asset_id]),
-        mimetype='image/png'
-    )
+    return send_file(BytesIO(assets[asset_id]), mimetype='image/png')
 
 if __name__ == '__main__':
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
