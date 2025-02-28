@@ -8,8 +8,6 @@
   <style>
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    
-    /* Left nav button hover with tooltip via title attribute is added inline below */
     .nav-btn {
       transition: transform 0.2s ease, background-color 0.2s ease;
       cursor: pointer;
@@ -18,14 +16,8 @@
       transform: scale(1.1);
       background-color: #1f2937;
     }
-    
-    /* Set default canvas cursor */
     canvas { cursor: grab; }
-    
-    #bottom-panel {
-      transition: max-height 0.3s ease-in-out;
-    }
-    /* Layers panel header glass effect */
+    #bottom-panel { transition: max-height 0.3s ease-in-out; }
     #layers-header {
       position: sticky;
       top: 0;
@@ -34,13 +26,11 @@
       z-index: 10;
       padding: 0.5rem 1rem;
     }
-    /* The overlay for the selected layer – used for resizing and rotating */
     #resize-overlay {
       border: 2px dashed #10b981;
       position: absolute;
       pointer-events: none;
     }
-    /* Resizing handles for all sides */
     .resize-handle {
       width: 12px;
       height: 12px;
@@ -58,8 +48,6 @@
     .handle-s { bottom: -6px; left: calc(50% - 6px); cursor: s-resize; }
     .handle-sw { bottom: -6px; left: -6px; cursor: sw-resize; }
     .handle-w { top: calc(50% - 6px); left: -6px; cursor: w-resize; }
-    
-    /* Rotate handle positioned above the top center */
     .rotate-handle {
       width: 12px;
       height: 12px;
@@ -74,32 +62,24 @@
   </style>
 </head>
 <body class="bg-[#0f0f0f] text-white font-['Inter'] flex flex-col h-screen overflow-hidden p-4">
-  <!-- Navigation Panel with tooltips -->
-  <nav class="fixed left-4 top-4 h-[calc(100vh-32px)] w-12 bg-[#212121] border border-neutral-800 flex flex-col items-center py-4 space-y-6 rounded-2xl overflow-visible">
-    <button class="nav-btn" title="Layers" data-action="layers" onclick="handleNavAction('layers')">
+  <!-- Navigation Panel -->
+  <nav class="fixed left-4 top-4 h-[calc(100vh-32px)] w-12 bg-[#212121] border border-neutral-800 flex flex-col items-center py-4 space-y-6 rounded-2xl">
+    <button class="nav-btn" title="Layers" onclick="handleNavAction('layers')">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
       </svg>
     </button>
-
-    <button class="nav-btn" title="Assets" data-action="assets" onclick="handleNavAction('assets')">
-      <!-- Changed Assets SVG (using a photograph icon) -->
+    <button class="nav-btn" title="Assets" onclick="handleNavAction('assets')">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 7a2 2 0 012-2h3.5a2 2 0 011.79 1.11L12 10.25l1.71-3.14A2 2 0 0115.5 5H19a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
       </svg>
     </button>
-
-    <button class="nav-btn" title="Remove Background" data-action="removeBg" onclick="handleNavAction('removeBg')">
+    <button class="nav-btn" title="Remove Background" onclick="handleNavAction('removeBg')">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
       </svg>
     </button>
-    <!-- <button class="nav-btn" title="Mockups" data-action="mockups" onclick="handleNavAction('mockups')">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      </svg>
-    </button> -->
-    <button class="nav-btn" title="Download" data-action="download" onclick="handleNavAction('download')">
+    <button class="nav-btn" title="Download" onclick="handleNavAction('download')">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
       </svg>
@@ -110,8 +90,8 @@
   <div class="pl-20 pr-4 flex h-full">
     <!-- Canvas Container -->
     <div class="flex-1 relative overflow-hidden rounded-2xl bg-[#0f0f0f] border border-neutral-800">
-      <canvas id="mainCanvas" class="w-full h-full"></canvas>
-      <!-- Resizing overlay for selected image with multiple handles -->
+      <canvas id="mainCanvas" class="w-full h-full" style="background: transparent;"></canvas>
+      <!-- Resizing overlay for selected layer -->
       <div id="resize-overlay" class="hidden">
         <div class="resize-handle handle-nw" data-handle="nw"></div>
         <div class="resize-handle handle-n" data-handle="n"></div>
@@ -123,26 +103,29 @@
         <div class="resize-handle handle-w" data-handle="w"></div>
         <div class="rotate-handle" data-handle="rotate"></div>
       </div>
-      <div class="absolute bottom-4 left-1/2 -translate-x-1/2">
-        <button id="mockup-button" 
-          class="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-medium px-4 py-2 rounded-full flex items-center gap-2 hover:shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95">
+      <!-- Bottom Buttons -->
+      <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-4">
+        <button id="mockup-button" class="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-medium px-4 py-2 rounded-full flex items-center gap-2 hover:shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
           </svg>
           Apply Mockup
         </button>
+        <button id="combine-button" class="bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-medium px-4 py-2 rounded-full flex items-center gap-2 hover:shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h4l3-3m0 0l3 3h4M3 14h18" />
+          </svg>
+          Combine Images
+        </button>
       </div>
+      <!-- Prompt Input -->
       <div class="absolute top-4 left-1/2 -translate-x-1/2 w-full max-w-3xl">
-        <textarea 
-          placeholder="Write a prompt" 
-          rows="1"
-          class="bg-[#212121] min-h-[56px] w-full px-6 py-4 pr-24 outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-300 placeholder:text-gray-400 resize-none overflow-hidden rounded-[28px] focus:rounded-3xl"
-        ></textarea>
-        <!-- Arrow button for prompt generation -->
+        <textarea placeholder="Write a prompt" rows="1"
+          class="bg-[#212121] min-h-[56px] w-full px-6 py-4 pr-24 outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-300 placeholder:text-gray-400 resize-none overflow-hidden rounded-[28px] focus:rounded-3xl"></textarea>
         <div class="absolute top-1/2 right-4 -translate-y-1/2 group">
-          <button id="prompt-arrow" class="relative inline-flex items-center justify-center p-px font-semibold leading-6 text-white bg-neutral-900 shadow-2xl cursor-pointer rounded-full shadow-emerald-900 transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 hover:shadow-emerald-600 text-sm">
+          <button id="prompt-arrow" class="relative inline-flex items-center justify-center p-px font-semibold leading-6 text-white bg-neutral-900 shadow-2xl cursor-pointer rounded-full transition-all duration-300 hover:scale-105 active:scale-95">
             <span class="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-500 via-cyan-500 to-sky-600 p-[2px] opacity-0 transition-opacity duration-500 group-hover:opacity-100"></span>
-            <span class="relative z-10 block p-2 rounded-full bg-neutral-950">
+            <span class="relative block p-2 rounded-full bg-neutral-950">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 transition-all duration-500 group-hover:translate-x-1 group-hover:text-emerald-300">
                 <path d="M16.172 11l-5.364-5.364 1.414-1.414L20 12l-7.778 7.778-1.414-1.414L16.172 13H4v-2z"></path>
               </svg>
@@ -151,23 +134,19 @@
         </div>
       </div>
     </div>
-
     <!-- Right Panel -->
     <div id="right-panel" class="w-80 bg-[#212121] border-l border-neutral-800 h-full flex flex-col">
-      <!-- Layers panel with fixed header and glass effect -->
       <div id="layers-panel" class="flex-1 overflow-y-auto no-scrollbar">
         <div id="layers-header" class="text-white font-medium text-lg">Layers</div>
         <div id="layers-list" class="space-y-3 p-2"></div>
       </div>
       <div id="bottom-panel" class="border-t border-neutral-800 overflow-hidden" style="max-height: 0;">
-        <!-- Assets Panel with glass effect -->
         <div id="assets-panel" class="p-6 overflow-y-auto max-h-[400px] hidden no-scrollbar">
           <div class="sticky top-0 bg-[#212121]/80 backdrop-blur-lg z-10 pb-4">
             <h2 class="text-white font-medium text-lg mb-4">Assets</h2>
             <div class="border-2 border-dashed border-neutral-700 rounded-xl p-4 text-center hover:border-emerald-500 transition-colors">
               <input type="file" id="asset-upload" accept="image/*" multiple class="hidden" onchange="handleAssetUpload(event)">
               <button onclick="document.getElementById('asset-upload').click()" class="w-full">
-                <!-- Changed assets icon (photograph icon) -->
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 mx-auto mb-2 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 7a2 2 0 012-2h3.5a2 2 0 011.79 1.11L12 10.25l1.71-3.14A2 2 0 0115.5 5H19a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
                 </svg>
@@ -175,7 +154,6 @@
               </button>
             </div>
           </div>
-          <!-- Assets grid -->
           <div id="assets-grid" class="grid grid-cols-3 gap-3 mt-4"></div>
         </div>
         <div id="adjustments-panel" class="p-6 hidden">
@@ -196,26 +174,27 @@
   </div>
 
   <script>
-    // Canvas and context
+    // Global variables and canvas setup
     const canvas = document.getElementById('mainCanvas');
-    const ctx = canvas.getContext('2d');
-
+    const ctx = canvas.getContext('2d', { alpha: true });
     let layers = [];
+    let assets = [];
     let layerCounter = 0;
     let selectedLayer = null;
-
     let viewOffsetX = 0, viewOffsetY = 0, viewScale = 1;
     let isPanning = false, panStart = { x: 0, y: 0 };
-
-    // For dragging a selected layer individually
-    let draggingLayer = false;
-    let layerDragStart = { x: 0, y: 0 };
-    let initialLayerPos = { x: 0, y: 0 };
-
-    // Active control for resizing/rotating (handles)
+    let draggingLayer = false, layerDragStart = { x: 0, y: 0 }, initialLayerPos = { x: 0, y: 0 };
     let activeControl = null;
-
-    // Set up canvas size based on container dimensions
+    
+    // Helper: convert data URL to Blob
+    function dataURLtoBlob(dataurl) {
+      var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+          bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+      while(n--) { u8arr[n] = bstr.charCodeAt(n); }
+      return new Blob([u8arr], {type: mime});
+    }
+    
+    // Resize and redraw canvas
     function resizeCanvas() {
       canvas.width = canvas.offsetWidth;
       canvas.height = canvas.offsetHeight;
@@ -223,31 +202,47 @@
       updateResizeOverlay();
     }
     window.addEventListener('resize', resizeCanvas);
-
-    // Show/hide bottom panels
-    function showBottomPanel(panelId) {
-      document.getElementById('assets-panel').classList.add('hidden');
-      document.getElementById('adjustments-panel').classList.add('hidden');
-      const bottomPanel = document.getElementById('bottom-panel');
-      if(panelId === 'assets' || panelId === 'adjustments'){
-        document.getElementById(panelId + '-panel').classList.remove('hidden');
-        bottomPanel.style.maxHeight = '400px';
-      } else {
-        bottomPanel.style.maxHeight = '0';
-      }
+    
+    function redrawCanvas() {
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.setTransform(viewScale,0,0,viewScale,viewOffsetX,viewOffsetY);
+      layers.forEach(layer => {
+        if(layer.visible !== false) {
+          ctx.save();
+          ctx.translate(layer.x, layer.y);
+          ctx.rotate(layer.rotation || 0);
+          ctx.scale(layer.scale || 1, layer.scale || 1);
+          ctx.drawImage(layer.image, -layer.image.width/2, -layer.image.height/2);
+          ctx.restore();
+        }
+      });
     }
-
-    // --- Layer dragging vs. canvas panning ---
+    
+    function updateResizeOverlay() {
+      const overlay = document.getElementById('resize-overlay');
+      if(!selectedLayer) { overlay.classList.add('hidden'); return; }
+      const centerX = viewScale * selectedLayer.x + viewOffsetX;
+      const centerY = viewScale * selectedLayer.y + viewOffsetY;
+      const width = viewScale * selectedLayer.image.width * selectedLayer.scale;
+      const height = viewScale * selectedLayer.image.height * selectedLayer.scale;
+      overlay.style.left = (centerX - width/2) + 'px';
+      overlay.style.top = (centerY - height/2) + 'px';
+      overlay.style.width = width + 'px';
+      overlay.style.height = height + 'px';
+      overlay.classList.remove('hidden');
+    }
+    
+    // Canvas mouse events for dragging and panning
     canvas.addEventListener('mousedown', (e) => {
       const rect = canvas.getBoundingClientRect();
       const mouseX = (e.clientX - rect.left - viewOffsetX) / viewScale;
       const mouseY = (e.clientY - rect.top - viewOffsetY) / viewScale;
-      // If a layer is selected and the click is inside its bounding box, start dragging the layer.
       if(selectedLayer &&
-         mouseX >= selectedLayer.x - (selectedLayer.image.width * selectedLayer.scale) / 2 &&
-         mouseX <= selectedLayer.x + (selectedLayer.image.width * selectedLayer.scale) / 2 &&
-         mouseY >= selectedLayer.y - (selectedLayer.image.height * selectedLayer.scale) / 2 &&
-         mouseY <= selectedLayer.y + (selectedLayer.image.height * selectedLayer.scale) / 2) {
+         mouseX >= selectedLayer.x - (selectedLayer.image.width * selectedLayer.scale)/2 &&
+         mouseX <= selectedLayer.x + (selectedLayer.image.width * selectedLayer.scale)/2 &&
+         mouseY >= selectedLayer.y - (selectedLayer.image.height * selectedLayer.scale)/2 &&
+         mouseY <= selectedLayer.y + (selectedLayer.image.height * selectedLayer.scale)/2) {
         draggingLayer = true;
         layerDragStart.x = e.clientX;
         layerDragStart.y = e.clientY;
@@ -255,22 +250,20 @@
         initialLayerPos.y = selectedLayer.y;
         return;
       }
-      // Otherwise, start panning the canvas and change cursor to indicate panning.
       isPanning = true;
       panStart.x = e.clientX;
       panStart.y = e.clientY;
       canvas.style.cursor = 'grabbing';
     });
-
     canvas.addEventListener('mousemove', (e) => {
-      if (draggingLayer && selectedLayer) {
+      if(draggingLayer && selectedLayer) {
         const dx = (e.clientX - layerDragStart.x) / viewScale;
         const dy = (e.clientY - layerDragStart.y) / viewScale;
         selectedLayer.x = initialLayerPos.x + dx;
         selectedLayer.y = initialLayerPos.y + dy;
         redrawCanvas();
         updateResizeOverlay();
-      } else if (isPanning) {
+      } else if(isPanning) {
         const dx = e.clientX - panStart.x;
         const dy = e.clientY - panStart.y;
         viewOffsetX += dx;
@@ -281,63 +274,38 @@
         updateResizeOverlay();
       }
     });
-
-    canvas.addEventListener('mouseup', () => { 
-      isPanning = false; 
+    canvas.addEventListener('mouseup', () => {
+      isPanning = false;
       draggingLayer = false;
       canvas.style.cursor = 'grab';
     });
-    canvas.addEventListener('mouseleave', () => { 
-      isPanning = false; 
+    canvas.addEventListener('mouseleave', () => {
+      isPanning = false;
       draggingLayer = false;
       canvas.style.cursor = 'grab';
     });
-
-    // Click on canvas selects a layer (if within bounds)
+    
+    // Click on canvas to select a layer
     canvas.addEventListener('click', (e) => {
       if(activeControl) return;
       const rect = canvas.getBoundingClientRect();
       const x = (e.clientX - rect.left - viewOffsetX) / viewScale;
       const y = (e.clientY - rect.top - viewOffsetY) / viewScale;
       selectedLayer = null;
-      for (let i = layers.length - 1; i >= 0; i--) {
+      for(let i = layers.length-1; i>=0; i--){
         const layer = layers[i];
         const halfW = (layer.image.width * layer.scale) / 2;
         const halfH = (layer.image.height * layer.scale) / 2;
-        if (x >= layer.x - halfW && x <= layer.x + halfW &&
-            y >= layer.y - halfH && y <= layer.y + halfH) {
+        if(x >= layer.x - halfW && x <= layer.x + halfW &&
+           y >= layer.y - halfH && y <= layer.y + halfH) {
           selectedLayer = layer;
           break;
         }
       }
       updateResizeOverlay();
     });
-
-    // Redraw canvas
-    function redrawCanvas() {
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.setTransform(viewScale, 0, 0, viewScale, viewOffsetX, viewOffsetY);
-      layers.forEach(layer => {
-        if(layer.visible) {
-          ctx.save();
-          ctx.translate(layer.x, layer.y);
-          ctx.rotate(layer.rotation);
-          ctx.scale(layer.scale, layer.scale);
-          ctx.drawImage(layer.image, -layer.image.width / 2, -layer.image.height / 2);
-          ctx.restore();
-        }
-      });
-    }
-
-    // Utility: get layer center on screen
-    function getLayerCenterOnScreen(layer) {
-      const x = viewScale * layer.x + viewOffsetX;
-      const y = viewScale * layer.y + viewOffsetY;
-      return { x, y };
-    }
-
-    // Drag and drop events for canvas
+    
+    // Drag and drop on canvas for file uploads or asset dragging
     canvas.addEventListener('dragover', (e) => {
       e.preventDefault();
       canvas.style.border = '2px dashed #10b981';
@@ -346,46 +314,41 @@
     canvas.addEventListener('drop', (e) => {
       e.preventDefault();
       canvas.style.border = 'none';
-      if (e.dataTransfer.files.length > 0) {
+      if(e.dataTransfer.files.length > 0) {
         const file = e.dataTransfer.files[0];
-        if (file) handleImageUpload(file);
+        if(file) handleImageUpload(file);
       } else {
         const imgSrc = e.dataTransfer.getData('text/plain');
-        if (imgSrc) {
+        if(imgSrc) {
           const img = new Image();
-          img.onload = () => { addNewLayer(img); redrawCanvas(); };
+          img.onload = () => { addNewLayer(img); redrawCanvas(); updateLayersList(); };
           img.src = imgSrc;
         }
       }
     });
-
-    // Handle image upload
+    
     function handleImageUpload(file) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const img = new Image();
         img.onload = () => { 
-          addNewLayer(img); 
-          redrawCanvas(); 
+          addNewLayer(img);
+          redrawCanvas();
+          updateLayersList();
         };
         img.src = e.target.result;
       };
       reader.readAsDataURL(file);
     }
-
-    // Add a new layer with scaling and offset (to avoid "gluing")
+    
+    // Add a new layer from an image
     function addNewLayer(img) {
       layerCounter++;
-      let scale = 1;
-      const maxWidth = canvas.width * 0.8;
-      const maxHeight = canvas.height * 0.8;
-      const widthRatio = maxWidth / img.width;
-      const heightRatio = maxHeight / img.height;
-      scale = Math.min(1, widthRatio, heightRatio);
-      let centerX = (canvas.width / 2 - viewOffsetX) / viewScale;
-      let centerY = (canvas.height / 2 - viewOffsetY) / viewScale;
-      if (layers.length > 0) {
-        const lastLayer = layers[layers.length - 1];
+      let scale = Math.min(1, (canvas.width*0.8)/img.width, (canvas.height*0.8)/img.height);
+      let centerX = (canvas.width/2 - viewOffsetX)/viewScale;
+      let centerY = (canvas.height/2 - viewOffsetY)/viewScale;
+      if(layers.length > 0){
+        const lastLayer = layers[layers.length-1];
         centerX = lastLayer.x + 40;
         centerY = lastLayer.y + 40;
       }
@@ -402,60 +365,12 @@
       layers.push(layer);
       updateLayersList();
     }
-
-    function removeBackground() { 
-      // Now handled via backend call in handleRemoveBg()
-    }
-
-    function downloadCanvas() {
-      const link = document.createElement('a');
-      link.download = 'design.png';
-      link.href = canvas.toDataURL();
-      link.click();
-    }
-
-    // Asset upload and creation
-    function handleAssetUpload(event) {
-      const files = event.target.files;
-      const assetsGrid = document.getElementById('assets-grid');
-      for (const file of files) {
-        if (file.type.startsWith('image/')) {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const assetElement = createAssetElement(e.target.result, file.name);
-            assetsGrid.insertBefore(assetElement, assetsGrid.firstChild);
-          };
-          reader.readAsDataURL(file);
-        }
-      }
-    }
-    function createAssetElement(src, name) {
-      const div = document.createElement('div');
-      div.className = 'group relative bg-neutral-800/50 rounded-xl p-2 hover:bg-neutral-800 transition-colors cursor-move';
-      div.draggable = true;
-      div.innerHTML = `
-        <img src="${src}" alt="${name}" class="w-full h-24 object-cover rounded-lg mb-2">
-        <p class="text-xs text-neutral-400 truncate">${name}</p>
-        <button onclick="deleteAsset(this)" class="absolute top-1 right-1 p-1 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-        </button>
-      `;
-      div.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', src); });
-      return div;
-    }
-    function deleteAsset(button) { 
-      button.closest('div').remove(); 
-    }
-
-    // Update layers list in the right panel
+    
+    // Update layers list with select, toggle visibility, and delete functionality
     function updateLayersList() {
       const layersList = document.getElementById('layers-list');
       layersList.innerHTML = '';
-      // Iterate in reverse order so that top layers are listed first.
       [...layers].reverse().forEach(layer => {
-        // Determine the toggle icon based on visibility:
         const toggleIcon = layer.visible
           ? `<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -465,7 +380,6 @@
                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a10.05 10.05 0 012.143-3.357M4.707 4.707l14.586 14.586" />
                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.88 9.88a3 3 0 104.24 4.24" />
              </svg>`;
-        // Create the layer element; clicking the element selects the layer.
         const layerElement = document.createElement('div');
         layerElement.className = 'bg-neutral-800/50 backdrop-blur-sm rounded-xl p-3 flex items-center justify-between group hover:bg-neutral-800 transition-colors cursor-pointer';
         layerElement.setAttribute('draggable', true);
@@ -478,20 +392,17 @@
             <span class="text-sm text-neutral-200">${layer.name}</span>
           </div>
           <div class="flex gap-2">
-            <button onclick="toggleLayerVisibility(${layer.id}); event.stopPropagation();" class="text-neutral-400 hover:text-white" title="Toggle Visibility">
+            <button onclick="toggleLayerVisibility(${layer.id}); event.stopPropagation();" title="Toggle Visibility" class="text-neutral-400 hover:text-white">
               ${toggleIcon}
             </button>
-            <button onclick="deleteLayer(${layer.id}); event.stopPropagation();" class="text-neutral-400 hover:text-white" title="Delete Layer">
+            <button onclick="deleteLayer(${layer.id}); event.stopPropagation();" title="Delete Layer" class="text-neutral-400 hover:text-white">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
             </button>
           </div>
         `;
-        // Drag and drop events for reordering layers:
-        layerElement.addEventListener('dragstart', (e) => {
-          e.dataTransfer.setData('text/plain', layer.id);
-        });
+        layerElement.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', layer.id); });
         layerElement.addEventListener('dragover', (e) => { e.preventDefault(); });
         layerElement.addEventListener('drop', (e) => {
           e.preventDefault();
@@ -516,9 +427,7 @@
     }
     function deleteLayer(layerId) {
       layers = layers.filter(l => l.id !== layerId);
-      if(selectedLayer && selectedLayer.id === layerId){
-        selectedLayer = null;
-      }
+      if(selectedLayer && selectedLayer.id === layerId){ selectedLayer = null; }
       redrawCanvas();
       updateLayersList();
       updateResizeOverlay();
@@ -533,26 +442,8 @@
         updateLayersList();
       }
     }
-
-    // Update the resizing overlay position and size
-    function updateResizeOverlay() {
-      const overlay = document.getElementById('resize-overlay');
-      if(!selectedLayer) { 
-        overlay.classList.add('hidden');
-        return; 
-      }
-      const centerX = viewScale * selectedLayer.x + viewOffsetX;
-      const centerY = viewScale * selectedLayer.y + viewOffsetY;
-      const width = viewScale * selectedLayer.image.width * selectedLayer.scale;
-      const height = viewScale * selectedLayer.image.height * selectedLayer.scale;
-      overlay.style.left = (centerX - width/2) + 'px';
-      overlay.style.top = (centerY - height/2) + 'px';
-      overlay.style.width = width + 'px';
-      overlay.style.height = height + 'px';
-      overlay.classList.remove('hidden');
-    }
-
-    // Handle mousedown on a resize or rotate handle
+    
+    // Resize/rotate handle events
     function onHandleMouseDown(e) {
       e.stopPropagation();
       const handleType = e.target.getAttribute('data-handle');
@@ -562,7 +453,7 @@
           type: 'rotate',
           initialMouse: { x: e.clientX, y: e.clientY },
           initialRotation: selectedLayer.rotation,
-          center: getLayerCenterOnScreen(selectedLayer)
+          center: { x: viewScale * selectedLayer.x + viewOffsetX, y: viewScale * selectedLayer.y + viewOffsetY }
         };
       } else {
         activeControl = {
@@ -570,19 +461,15 @@
           handle: handleType,
           initialMouse: { x: e.clientX, y: e.clientY },
           initialScale: selectedLayer.scale,
-          center: getLayerCenterOnScreen(selectedLayer)
+          center: { x: viewScale * selectedLayer.x + viewOffsetX, y: viewScale * selectedLayer.y + viewOffsetY }
         };
         const dx = e.clientX - activeControl.center.x;
         const dy = e.clientY - activeControl.center.y;
         activeControl.initialDistance = Math.sqrt(dx*dx + dy*dy);
       }
     }
-    // Attach mousedown events to all handles
     const handles = document.querySelectorAll('#resize-overlay [data-handle]');
-    handles.forEach(handle => {
-      handle.addEventListener('mousedown', onHandleMouseDown);
-    });
-    // Global mousemove for active control (resize/rotate)
+    handles.forEach(handle => { handle.addEventListener('mousedown', onHandleMouseDown); });
     window.addEventListener('mousemove', (e) => {
       if(activeControl && selectedLayer) {
         if(activeControl.type === 'rotate') {
@@ -608,152 +495,307 @@
       }
     });
     window.addEventListener('mouseup', () => { activeControl = null; });
-
+    
     // Auto-resizing textarea
     document.querySelector('textarea').addEventListener('input', function() {
       this.style.height = 'auto';
       this.style.height = this.scrollHeight + 'px';
     });
-
-    // ---------------- Backend integration functions ----------------
-
-    document.querySelector('[data-action="removeBg"]').addEventListener('click', async () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        
-        input.onchange = async (e) => {
-            const file = e.target.files[0];
-            const formData = new FormData();
-            formData.append('file', file);
-            
-            try {
-                // Show loading indicator
-                document.body.style.cursor = 'wait';
-                
-                const response = await fetch('/remove-bg', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || 'Background removal failed');
-                }
-                
-                const blob = await response.blob();
-                const img = new Image();
-                img.onload = () => {
-                    addNewLayer(img);
-                    redrawCanvas();
-                    
-                    // Add to assets grid
-                    const assetsGrid = document.getElementById('assets-grid');
-                    const assetElement = createAssetElement(img.src, "Removed BG");
-                    assetsGrid.insertBefore(assetElement, assetsGrid.firstChild);
-                };
-                img.src = URL.createObjectURL(blob);
-                
-            } catch (error) {
-                console.error('Background removal failed:', error);
-                alert('Background removal failed: ' + error.message);
-            } finally {
-                document.body.style.cursor = 'default';
-            }
-        };
-        
-        input.click();
-    });
-
-    // Handle prompt generation 
-    document.getElementById('prompt-arrow').addEventListener('click', async () => {
-        const prompt = document.querySelector('textarea').value.trim();
-        if (!prompt) {
-            alert('Please enter a prompt before generating an image.');
-            return;
-        }
-        
+    
+    // ---------------- Backend Integration ----------------
+    
+    // Remove Background from selected layer (calls Python endpoint directly)
+    function removeBgSelected() {
+      if(!selectedLayer) {
+        alert("Please select a layer to remove its background.");
+        return;
+      }
+      (async () => {
         try {
-            // Show loading indicator
-            document.body.style.cursor = 'wait';
-            
-            const response = await fetch('/generate-image', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ prompt })
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Image generation failed');
-            }
-            
-            const data = await response.json();
-            
-            if (data.image) {
-                const img = new Image();
-                img.onload = () => {
-                    addNewLayer(img);
-                    redrawCanvas();
-                    
-                    // Add to assets grid
-                    const assetsGrid = document.getElementById('assets-grid');
-                    const assetElement = createAssetElement(img.src, `Generated: ${prompt.substring(0, 20)}...`);
-                    assetsGrid.insertBefore(assetElement, assetsGrid.firstChild);
-                };
-                img.src = "data:image/png;base64," + data.image;
-            } else {
-                throw new Error('No image data received');
-            }
-            
-        } catch (error) {
-            console.error('Image generation failed:', error);
-            alert('Image generation failed: ' + error.message);
+          document.body.style.cursor = 'wait';
+          const blob = dataURLtoBlob(selectedLayer.image.src);
+          const formData = new FormData();
+          formData.append('file', blob, 'layer.png');
+          const response = await fetch('/remove-bg', { method: 'POST', body: formData });
+          if(!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || "Background removal failed");
+          }
+          const newBlob = await response.blob();
+          const img = new Image();
+          img.onload = () => {
+            selectedLayer.image = img;
+            redrawCanvas();
+            updateResizeOverlay();
+          };
+          img.src = URL.createObjectURL(newBlob);
+        } catch(error) {
+          console.error("Background removal failed:", error);
+          alert("Background removal failed: " + error.message);
         } finally {
-            document.body.style.cursor = 'default';
+          document.body.style.cursor = 'default';
         }
-    });
-
-
-    // Helper to add an asset to the assets grid
-    function addAsset(img, name) {
-      const assetsGrid = document.getElementById('assets-grid');
-      const assetElement = createAssetElement(img.src, name || "Asset");
-      assetsGrid.insertBefore(assetElement, assetsGrid.firstChild);
+      })();
     }
-
-    // ---------------- Navigation actions ----------------
+    
+    // Combine all visible layers (regular combination)
+    async function combineCanvasLayers() {
+      if(layers.length === 0){
+        alert("No layers to combine.");
+        return;
+      }
+      try {
+        document.body.style.cursor = 'wait';
+        const layersPayload = layers.filter(layer => layer.visible !== false).map(layer => {
+          let imageData = "";
+          if(layer.image.src && layer.image.src.startsWith("data:")){
+            imageData = layer.image.src.split(",")[1];
+          }
+          return {
+            imageData: imageData,
+            x: layer.x,
+            y: layer.y,
+            scale: layer.scale,
+            rotation: layer.rotation,
+            visible: true
+          };
+        });
+        const payload = {
+          width: canvas.width,
+          height: canvas.height,
+          mode: "combine",
+          layers: layersPayload
+        };
+        const response = await fetch('/combine-images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if(!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to combine images");
+        }
+        const blob = await response.blob();
+        const combinedImg = new Image();
+        combinedImg.onload = () => {
+          layerCounter++;
+          const newLayer = {
+            id: layerCounter,
+            image: combinedImg,
+            visible: true,
+            name: `Combined ${layerCounter}`,
+            x: (canvas.width/2 - viewOffsetX)/viewScale,
+            y: (canvas.height/2 - viewOffsetY)/viewScale,
+            scale: 1,
+            rotation: 0
+          };
+          layers.push(newLayer);
+          selectedLayer = newLayer;
+          redrawCanvas();
+          updateLayersList();
+          updateResizeOverlay();
+        };
+        combinedImg.src = URL.createObjectURL(blob);
+      } catch(error) {
+        console.error("Error combining images:", error);
+        alert("Error combining images: " + error.message);
+      } finally {
+        document.body.style.cursor = 'default';
+      }
+    }
+    
+    // Apply Mockup: send only two layers with mode "mockup" so the backend uses base properties as a mask
+    async function applyMockup(baseLayerId, designLayerId) {
+      try {
+        document.body.style.cursor = 'wait';
+        const baseLayer = layers.find(l => l.id === baseLayerId);
+        const designLayer = layers.find(l => l.id === designLayerId);
+        if(!baseLayer || !designLayer) {
+          throw new Error("Layers not found");
+        }
+        function getImageData(layer) {
+          if(layer.image.src && layer.image.src.startsWith("data:")){
+            return layer.image.src.split(",")[1];
+          }
+          return "";
+        }
+        const payload = {
+          width: canvas.width,
+          height: canvas.height,
+          mode: "mockup",
+          layers: [
+            {
+              imageData: getImageData(baseLayer),
+              x: baseLayer.x,
+              y: baseLayer.y,
+              scale: baseLayer.scale,
+              rotation: baseLayer.rotation,
+              visible: true
+            },
+            {
+              imageData: getImageData(designLayer),
+              x: designLayer.x,
+              y: designLayer.y,
+              scale: designLayer.scale,
+              rotation: designLayer.rotation,
+              visible: true
+            }
+          ]
+        };
+        const response = await fetch('/combine-images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if(!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to apply mockup");
+        }
+        const blob = await response.blob();
+        const img = new Image();
+        img.onload = () => {
+          layerCounter++;
+          const newLayer = {
+            id: layerCounter,
+            image: img,
+            visible: true,
+            name: `Mockup ${layerCounter}`,
+            x: (canvas.width/2 - viewOffsetX)/viewScale,
+            y: (canvas.height/2 - viewOffsetY)/viewScale,
+            scale: 1,
+            rotation: 0
+          };
+          layers.push(newLayer);
+          selectedLayer = newLayer;
+          redrawCanvas();
+          updateLayersList();
+          updateResizeOverlay();
+        };
+        img.src = URL.createObjectURL(blob);
+      } catch(error) {
+        console.error("Error applying mockup:", error);
+        alert("Error applying mockup: " + error.message);
+      } finally {
+        document.body.style.cursor = 'default';
+      }
+    }
+    
+    // Navigation actions
     function handleNavAction(action) {
       switch(action) {
-        case 'upload': /* handle upload */; break;
         case 'layers': showBottomPanel(''); break;
         case 'assets': showBottomPanel('assets'); break;
         case 'adjustments': showBottomPanel('adjustments'); break;
-        case 'removeBg': handleRemoveBg(); break;
         case 'download': downloadCanvas(); break;
+        case 'removeBg': removeBgSelected(); break;
       }
     }
-    // Apply mockup functionality
+    
+    function showBottomPanel(panelId) {
+      document.getElementById('assets-panel').classList.add('hidden');
+      document.getElementById('adjustments-panel').classList.add('hidden');
+      const bottomPanel = document.getElementById('bottom-panel');
+      if(panelId === 'assets' || panelId === 'adjustments'){
+        document.getElementById(panelId + '-panel').classList.remove('hidden');
+        bottomPanel.style.maxHeight = '400px';
+      } else {
+        bottomPanel.style.maxHeight = '0';
+      }
+    }
+    
+    function downloadCanvas() {
+      const link = document.createElement('a');
+      link.download = 'design.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    }
+    
+    // Asset upload functions
+    function handleAssetUpload(event) {
+      const files = event.target.files;
+      const assetsGrid = document.getElementById('assets-grid');
+      for(const file of files) {
+        if(file.type.startsWith("image/")){
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const assetElement = createAssetElement(e.target.result, file.name);
+            assetsGrid.insertBefore(assetElement, assetsGrid.firstChild);
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+    }
+    function createAssetElement(src, name) {
+      const div = document.createElement('div');
+      div.className = 'group relative bg-neutral-800/50 rounded-xl p-2 hover:bg-neutral-800 transition-colors cursor-move';
+      div.draggable = true;
+      div.innerHTML = `
+        <img src="${src}" alt="${name}" class="w-full h-24 object-cover rounded-lg mb-2">
+        <p class="text-xs text-neutral-400 truncate">${name}</p>
+        <button onclick="deleteAsset(this)" class="absolute top-1 right-1 p-1 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      `;
+      div.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', src); });
+      return div;
+    }
+    function deleteAsset(button) {
+      button.closest('div').remove();
+    }
+    
+    // Attach combine images and prompt events
+    document.getElementById('combine-button').addEventListener('click', combineCanvasLayers);
+    document.getElementById('prompt-arrow').addEventListener('click', async () => {
+      const prompt = document.querySelector('textarea').value.trim();
+      if(!prompt) { alert("Please enter a prompt."); return; }
+      try {
+        document.body.style.cursor = 'wait';
+        const response = await fetch('/generate-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt })
+        });
+        if(!response.ok){
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Image generation failed");
+        }
+        const data = await response.json();
+        if(data.image){
+          const img = new Image();
+          img.onload = () => {
+            addNewLayer(img);
+            redrawCanvas();
+            updateLayersList();
+          };
+          img.src = "data:image/png;base64," + data.image;
+        } else {
+          throw new Error("No image data received");
+        }
+      } catch(error) {
+        console.error("Image generation failed:", error);
+        alert("Image generation failed: " + error.message);
+      } finally {
+        document.body.style.cursor = 'default';
+      }
+    });
+    
+    // Mockup button: open dialog to select base and design layers
     document.getElementById('mockup-button').addEventListener('click', () => {
-      if (layers.length < 2) {
-        alert('You need at least two layers (a base image and a design) to apply a mockup.');
+      if(layers.length < 2) {
+        alert("At least two layers (a base and a design) are required for a mockup.");
         return;
       }
-      
       showMockupDialog();
     });
-
-    // Create and show mockup dialog
+    
     function showMockupDialog() {
-      // Create a modal dialog
       const dialog = document.createElement('div');
       dialog.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-50';
-      
-      // Create dialog content
       dialog.innerHTML = `
         <div class="bg-[#212121] rounded-xl p-6 max-w-md w-full">
           <h2 class="text-xl font-medium mb-4">Apply Mockup</h2>
-          
           <div class="space-y-4">
             <div>
               <label class="block text-sm text-neutral-400 mb-1">Base Layer (Background)</label>
@@ -761,7 +803,6 @@
                 ${layers.map(layer => `<option value="${layer.id}">${layer.name}</option>`).join('')}
               </select>
             </div>
-            
             <div>
               <label class="block text-sm text-neutral-400 mb-1">Design Layer (Foreground)</label>
               <select id="design-layer" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2">
@@ -769,386 +810,35 @@
               </select>
             </div>
           </div>
-          
           <div class="flex justify-end gap-3 mt-6">
             <button id="cancel-mockup" class="px-4 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700">Cancel</button>
             <button id="apply-mockup" class="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-medium">Apply</button>
           </div>
         </div>
       `;
-      
       document.body.appendChild(dialog);
-      
-      // Handle dialog buttons
-      document.getElementById('cancel-mockup').addEventListener('click', () => {
-        dialog.remove();
-      });
-      
+      document.getElementById('cancel-mockup').addEventListener('click', () => { dialog.remove(); });
       document.getElementById('apply-mockup').addEventListener('click', async () => {
         const baseLayerId = parseInt(document.getElementById('base-layer').value);
         const designLayerId = parseInt(document.getElementById('design-layer').value);
-        
-        if (baseLayerId === designLayerId) {
-          alert('Please select different layers for base and design.');
+        if(baseLayerId === designLayerId){
+          alert("Please select different layers for base and design.");
           return;
         }
-        
         try {
           await applyMockup(baseLayerId, designLayerId);
           dialog.remove();
-        } catch (error) {
-          alert('Error applying mockup: ' + error.message);
+        } catch(error) {
+          alert("Error applying mockup: " + error.message);
         }
       });
     }
-
-    // Function to apply mockup effect
-    async function applyMockup(baseLayerId, designLayerId) {
-      // Show loading state
-      document.body.style.cursor = 'wait';
-      
-      try {
-        // Find the layer objects
-        const baseLayer = layers.find(l => l.id === baseLayerId);
-        const designLayer = layers.find(l => l.id === designLayerId);
-        
-        if (!baseLayer || !designLayer) {
-          throw new Error('Layers not found');
-        }
-        
-        // Get asset IDs from layer images
-        let baseAssetId = -1;
-        let designAssetId = -1;
-        
-        for (let i = 0; i < assets.length; i++) {
-          if (baseLayer.image.src && baseLayer.image.src.includes(`/asset/${i}`)) {
-            baseAssetId = i;
-          }
-          if (designLayer.image.src && designLayer.image.src.includes(`/asset/${i}`)) {
-            designAssetId = i;
-          }
-        }
-        
-        if (baseAssetId === -1 || designAssetId === -1) {
-          throw new Error('Asset IDs not found');
-        }
-        
-        // Get the transform information for the design layer
-        const transform = {
-          position: {
-            x: designLayer.x - baseLayer.x + (baseLayer.image.width * baseLayer.scale) / 2,
-            y: designLayer.y - baseLayer.y + (baseLayer.image.height * baseLayer.scale) / 2
-          },
-          scale: designLayer.scale / baseLayer.scale,
-          rotation: designLayer.rotation - baseLayer.rotation
-        };
-        
-        // Make API call to backend
-        const response = await fetch('/combine-images', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            baseLayerId: baseAssetId,
-            designLayerId: designAssetId,
-            transform: transform
-          })
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to apply mockup');
-        }
-        
-        const result = await response.json();
-        
-        if (result.image) {
-          // Create a new image from the combined result
-          const img = new Image();
-          img.onload = () => {
-            // Add as new layer
-            layerCounter++;
-            const layer = {
-              id: layerCounter,
-              image: img,
-              visible: true,
-              name: `Mockup ${layerCounter}`,
-              x: (canvas.width / 2 - viewOffsetX) / viewScale,
-              y: (canvas.height / 2 - viewOffsetY) / viewScale,
-              scale: 1,
-              rotation: 0
-            };
-            
-            layers.push(layer);
-            selectedLayer = layer;
-            
-            redrawCanvas();
-            updateLayersList();
-            updateResizeOverlay();
-            
-            // Add to assets grid
-            const assetsGrid = document.getElementById('assets-grid');
-            const assetElement = createAssetElement(img.src, `Mockup ${layerCounter}`);
-            assetsGrid.insertBefore(assetElement, assetsGrid.firstChild);
-          };
-          
-          img.src = "data:image/png;base64," + result.image;
-        }
-      } catch (error) {
-        console.error('Error applying mockup:', error);
-        throw error;
-      } finally {
-        document.body.style.cursor = 'default';
-      }
-    }
-
-    document.getElementById('mockup-button').addEventListener('click', () => {
-      if (layers.length < 2) {
-        alert('You need at least two layers (a base image and a design) to apply a mockup.');
-        return;
-      }
-      
-      showMockupDialog();
-    });
-
-    // Create and show mockup dialog
-    function showMockupDialog() {
-      // Create a modal dialog
-      const dialog = document.createElement('div');
-      dialog.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-50';
-      
-      // Create dialog content
-      dialog.innerHTML = `
-        <div class="bg-[#212121] rounded-xl p-6 max-w-md w-full">
-          <h2 class="text-xl font-medium mb-4">Apply Mockup</h2>
-          
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm text-neutral-400 mb-1">Base Layer (Background)</label>
-              <select id="base-layer" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2">
-                ${layers.map(layer => `<option value="${layer.id}">${layer.name}</option>`).join('')}
-              </select>
-            </div>
-            
-            <div>
-              <label class="block text-sm text-neutral-400 mb-1">Design Layer (Foreground)</label>
-              <select id="design-layer" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2">
-                ${layers.map(layer => `<option value="${layer.id}">${layer.name}</option>`).join('')}
-              </select>
-            </div>
-          </div>
-          
-          <div class="flex justify-end gap-3 mt-6">
-            <button id="cancel-mockup" class="px-4 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700">Cancel</button>
-            <button id="apply-mockup" class="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-medium">Apply</button>
-          </div>
-        </div>
-      `;
-      
-      document.body.appendChild(dialog);
-      
-      // Handle dialog buttons
-      document.getElementById('cancel-mockup').addEventListener('click', () => {
-        dialog.remove();
-      });
-      
-      document.getElementById('apply-mockup').addEventListener('click', async () => {
-        const baseLayerId = parseInt(document.getElementById('base-layer').value);
-        const designLayerId = parseInt(document.getElementById('design-layer').value);
-        
-        if (baseLayerId === designLayerId) {
-          alert('Please select different layers for base and design.');
-          return;
-        }
-        
-        try {
-          await applyMockup(baseLayerId, designLayerId);
-          dialog.remove();
-        } catch (error) {
-          alert('Error applying mockup: ' + error.message);
-        }
-      });
-    }
-
-    // Function to apply mockup effect
-    async function applyMockup(baseLayerId, designLayerId) {
-      // Show loading state
-      document.body.style.cursor = 'wait';
-      
-      try {
-        // Find the layer objects
-        const baseLayer = layers.find(l => l.id === baseLayerId);
-        const designLayer = layers.find(l => l.id === designLayerId);
-        
-        if (!baseLayer || !designLayer) {
-          throw new Error('Layers not found');
-        }
-        
-        // Get asset IDs from layer images
-        let baseAssetId = -1;
-        let designAssetId = -1;
-        
-        for (let i = 0; i < assets.length; i++) {
-          if (baseLayer.image.src && baseLayer.image.src.includes(`/asset/${i}`)) {
-            baseAssetId = i;
-          }
-          if (designLayer.image.src && designLayer.image.src.includes(`/asset/${i}`)) {
-            designAssetId = i;
-          }
-        }
-        
-        if (baseAssetId === -1 || designAssetId === -1) {
-          throw new Error('Asset IDs not found');
-        }
-        
-        // Get the transform information for the design layer
-        const transform = {
-          position: {
-            x: designLayer.x - baseLayer.x + (baseLayer.image.width * baseLayer.scale) / 2,
-            y: designLayer.y - baseLayer.y + (baseLayer.image.height * baseLayer.scale) / 2
-          },
-          scale: designLayer.scale / baseLayer.scale,
-          rotation: designLayer.rotation - baseLayer.rotation
-        };
-        
-        // Make API call to backend
-        const response = await fetch('/combine-images', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            baseLayerId: baseAssetId,
-            designLayerId: designAssetId,
-            transform: transform
-          })
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to apply mockup');
-        }
-        
-        const result = await response.json();
-        
-        if (result.image) {
-          // Create a new image from the combined result
-          const img = new Image();
-          img.onload = () => {
-            // Add as new layer
-            layerCounter++;
-            const layer = {
-              id: layerCounter,
-              image: img,
-              visible: true,
-              name: `Mockup ${layerCounter}`,
-              x: (canvas.width / 2 - viewOffsetX) / viewScale,
-              y: (canvas.height / 2 - viewOffsetY) / viewScale,
-              scale: 1,
-              rotation: 0
-            };
-            
-            layers.push(layer);
-            selectedLayer = layer;
-            
-            redrawCanvas();
-            updateLayersList();
-            updateResizeOverlay();
-            
-            // Add to assets grid
-            const assetsGrid = document.getElementById('assets-grid');
-            const assetElement = createAssetElement(img.src, `Mockup ${layerCounter}`);
-            assetsGrid.insertBefore(assetElement, assetsGrid.firstChild);
-          };
-          
-          img.src = "data:image/png;base64," + result.image;
-        }
-      } catch (error) {
-        console.error('Error applying mockup:', error);
-        throw error;
-      } finally {
-        document.body.style.cursor = 'default';
-      }
-    }
+    
     // Initialize on window load
     window.onload = () => {
       updateLayersList();
       resizeCanvas();
     };
-    
-    // Handle background removal button
-    document.querySelector('[data-action="removeBg"]').addEventListener('click', async () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        
-        input.onchange = async (e) => {
-            const file = e.target.files[0];
-            const formData = new FormData();
-            formData.append('file', file);
-            
-            try {
-                const response = await fetch('/remove-bg', {
-                    method: 'POST',
-                    body: formData
-                });
-                const blob = await response.blob();
-                addImageToCanvas(blob);
-                addToAssets(blob);
-            } catch (error) {
-                console.error('Background removal failed:', error);
-            }
-        };
-        
-        input.click();
-    });
-
-    // Handle prompt generation
-    document.querySelector('.prompt-button').addEventListener('click', async () => {
-        const prompt = document.querySelector('textarea').value;
-        
-        try {
-            const response = await fetch('/generate-image', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ prompt })
-            });
-            
-            const blob = await response.blob();
-            addImageToCanvas(blob);
-            addToAssets(blob);
-        } catch (error) {
-            console.error('Image generation failed:', error);
-        }
-    });
-
-    // Helper functions
-    function addImageToCanvas(blob) {
-        const img = new Image();
-        img.src = URL.createObjectURL(blob);
-        img.onload = () => {
-            // Add to canvas implementation
-            const layer = {
-                image: img,
-                x: canvas.width/2,
-                y: canvas.height/2,
-                scale: 1
-            };
-            layers.push(layer);
-            redrawCanvas();
-        };
-    }
-
-    function addToAssets(blob) {
-        const asset = {
-            id: assets.length,
-            preview: URL.createObjectURL(blob)
-        };
-        assets.push(asset);
-        updateAssetsGrid();
-    }
   </script>
 </body>
 </html>
-    

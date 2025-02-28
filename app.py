@@ -14,7 +14,8 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
-BG_REMOVAL_API = "https://api-inference.huggingface.co/models/not-lain/background-removal"
+# Use the correct endpoint for the Space
+BG_REMOVAL_API = "https://hf.space/embed/not-lain/background-removal/api/predict/"
 TEXT_TO_IMAGE_API = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
 
 HEADERS = {
@@ -26,40 +27,41 @@ layers = []
 assets = []
 
 def query_huggingface_api(api_url, **kwargs):
-    """
-    Send a POST request to the given Hugging Face API endpoint.
-    Accepts keyword arguments so you can pass either raw data or json.
-    """
-    response = requests.post(api_url, headers=HEADERS, **kwargs)
+    # If sending JSON, set the content type header
+    local_headers = HEADERS.copy()
+    if "json" in kwargs:
+        local_headers["Content-Type"] = "application/json"
+    response = requests.post(api_url, headers=local_headers, **kwargs)
     if response.status_code != 200:
         raise Exception(f"API Error: {response.status_code} - {response.text}")
     return response.content
 
-# Root route renders the index.html
 @app.route('/')
 def index():
     return render_template("index.html")
 
 @app.route('/remove-bg', methods=['POST'])
 def remove_background():
-    """Handle background removal using Hugging Face model"""
+    """Handle background removal using the Hugging Face Space API"""
     try:
         if 'file' in request.files:
-            # Handling file upload from form
             file = request.files['file']
             if file.filename == '':
                 return jsonify({"error": "No file selected"}), 400
             image_bytes = file.read()
         elif request.is_json and 'image' in request.json:
-            # Handling base64 encoded image
             image_bytes = base64.b64decode(request.json['image'])
         else:
             return jsonify({"error": "No image provided"}), 400
+
+        # Encode the image in base64 and build the JSON payload
+        image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+        payload = {"data": [image_b64]}
         
-        # Process image through Hugging Face API
-        processed_image = query_huggingface_api(BG_REMOVAL_API, data=image_bytes)
-        
-        # Create new layer
+        # Call the API using a JSON payload
+        processed_image = query_huggingface_api(BG_REMOVAL_API, json=payload)
+
+        # Create new layer and asset (for in-memory storage)
         layer_id = len(layers) + 1
         layers.append({
             "id": layer_id,
@@ -67,20 +69,11 @@ def remove_background():
             "position": {"x": 0, "y": 0},
             "scale": 1.0
         })
-
-        # Add to assets
         assets.append(processed_image)
 
-        # Return either raw image data or base64 depending on request format
-        if request.is_json:
-            return jsonify({"image": base64.b64encode(processed_image).decode('utf-8')})
-        else:
-            return send_file(
-                BytesIO(processed_image),
-                mimetype='image/png',
-                download_name=f'layer_{layer_id}.png'
-            )
-
+        # Return result as base64-encoded image
+        return jsonify({"image": base64.b64encode(processed_image).decode("utf-8")})
+    
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -121,86 +114,89 @@ def generate_image():
 
 @app.route('/combine-images', methods=['POST'])
 def combine_images():
-    """Combine multiple images with their transformations applied"""
     try:
         data = request.json
         if not data or 'layers' not in data:
             return jsonify({"error": "No layers provided"}), 400
         
-        # Create a blank canvas with the specified dimensions
         width = data.get('width', 1200)
         height = data.get('height', 800)
-        background_color = data.get('backgroundColor', (0, 0, 0, 0))  # Transparent by default
+        background_color = data.get('backgroundColor', (0, 0, 0, 0))
         
-        # Create a new image with transparency
-        combined_image = Image.new('RGBA', (width, height), background_color)
+        mode = data.get("mode", "combine")
         
-        # Process each layer
-        for layer_data in data['layers']:
-            # Skip if layer is not visible
-            if not layer_data.get('visible', True):
-                continue
-                
-            # Get the layer image data
-            if 'imageData' in layer_data:
-                # Image data provided as base64
-                layer_image_bytes = base64.b64decode(layer_data['imageData'])
-                layer_image = Image.open(BytesIO(layer_image_bytes))
-            elif 'assetId' in layer_data and layer_data['assetId'] < len(assets):
-                # Use an asset from our stored assets
-                layer_image = Image.open(BytesIO(assets[layer_data['assetId']]))
+        if mode == "mockup":
+            # Expect exactly two layers: base and design
+            if len(data['layers']) < 2:
+                return jsonify({"error": "Two layers required for mockup"}), 400
+            base_layer = data['layers'][0]
+            design_layer = data['layers'][1]
+            if 'imageData' in base_layer:
+                base_image_bytes = base64.b64decode(base_layer['imageData'])
+                base_img = Image.open(BytesIO(base_image_bytes)).convert("RGBA")
             else:
-                continue
-                
-            # Apply transformations
-            # 1. Resize
-            original_width, original_height = layer_image.size
-            new_width = int(original_width * layer_data.get('scale', 1.0))
-            new_height = int(original_height * layer_data.get('scale', 1.0))
-            if new_width != original_width or new_height != original_height:
-                layer_image = layer_image.resize((new_width, new_height), Image.LANCZOS)
-                
-            # 2. Rotate (if rotation is provided)
-            if 'rotation' in layer_data and layer_data['rotation'] != 0:
-                layer_image = layer_image.rotate(
-                    -float(layer_data['rotation']) * (180/3.14159),  # Convert radians to degrees
-                    expand=True,
-                    resample=Image.BICUBIC
-                )
-                
-            # 3. Position (centered at the specified coordinates)
-            position_x = layer_data.get('x', width/2)
-            position_y = layer_data.get('y', height/2)
-            paste_x = int(position_x - layer_image.width/2)
-            paste_y = int(position_y - layer_image.height/2)
+                return jsonify({"error": "Base layer image data missing"}), 400
+            if 'imageData' in design_layer:
+                design_image_bytes = base64.b64decode(design_layer['imageData'])
+                design_img = Image.open(BytesIO(design_image_bytes)).convert("RGBA")
+            else:
+                return jsonify({"error": "Design layer image data missing"}), 400
             
-            # If the layer has transparency, we need to use alpha compositing
-            if layer_image.mode == 'RGBA':
-                # Create a temporary transparent image for this layer
-                temp = Image.new('RGBA', combined_image.size, (0, 0, 0, 0))
-                temp.paste(layer_image, (paste_x, paste_y), layer_image)
-                combined_image = Image.alpha_composite(combined_image, temp)
-            else:
-                # Convert to RGBA to ensure compatibility
-                layer_image = layer_image.convert('RGBA')
-                temp = Image.new('RGBA', combined_image.size, (0, 0, 0, 0))
-                temp.paste(layer_image, (paste_x, paste_y), layer_image)
-                combined_image = Image.alpha_composite(combined_image, temp)
+            # Resize design image to match base image dimensions if they differ
+            if base_img.size != design_img.size:
+                design_img = design_img.resize(base_img.size, Image.LANCZOS)
+            
+            # Create a mask from the base image (use alpha channel if available, else grayscale)
+            try:
+                mask = base_img.split()[3]
+            except Exception:
+                mask = base_img.convert("L")
+            
+            # Composite the design image over the base using the mask
+            combined_img = Image.composite(design_img, base_img, mask)
         
-        # Convert the final image to PNG
+        else:
+            # Regular combination for multiple layers
+            combined_img = Image.new('RGBA', (width, height), background_color)
+            for layer_data in data['layers']:
+                if not layer_data.get('visible', True):
+                    continue
+                if 'imageData' in layer_data:
+                    layer_image_bytes = base64.b64decode(layer_data['imageData'])
+                    layer_image = Image.open(BytesIO(layer_image_bytes)).convert("RGBA")
+                elif 'assetId' in layer_data:
+                    # Assuming assets is defined in memory
+                    layer_image = Image.open(BytesIO(assets[layer_data['assetId']])).convert("RGBA")
+                else:
+                    continue
+                
+                original_width, original_height = layer_image.size
+                scale = layer_data.get('scale', 1.0)
+                new_width = int(original_width * scale)
+                new_height = int(original_height * scale)
+                if new_width != original_width or new_height != original_height:
+                    layer_image = layer_image.resize((new_width, new_height), Image.LANCZOS)
+                
+                if 'rotation' in layer_data and layer_data['rotation'] != 0:
+                    layer_image = layer_image.rotate(-float(layer_data['rotation']) * (180/3.14159),
+                                                     expand=True, resample=Image.BICUBIC)
+                
+                pos_x = layer_data.get('x', width/2)
+                pos_y = layer_data.get('y', height/2)
+                paste_x = int(pos_x - layer_image.width/2)
+                paste_y = int(pos_y - layer_image.height/2)
+                temp = Image.new('RGBA', combined_img.size, (0, 0, 0, 0))
+                temp.paste(layer_image, (paste_x, paste_y), layer_image)
+                combined_img = Image.alpha_composite(combined_img, temp)
+        
         output = BytesIO()
-        combined_image.save(output, format='PNG')
+        combined_img.save(output, format='PNG')
         output.seek(0)
-        
-        # Return the combined image
-        return send_file(
-            output,
-            mimetype='image/png',
-            download_name='combined_image.png'
-        )
-        
+        return send_file(output, mimetype='image/png', download_name='combined_image.png')
+    
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/layers', methods=['GET'])
 def get_layers():
