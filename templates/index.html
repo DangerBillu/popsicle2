@@ -14,7 +14,6 @@
     }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    /* Navbar and its buttons: add a high z-index so they stay on top */
     nav {
       z-index: 1000;
     }
@@ -75,8 +74,9 @@
   </style>
 </head>
 <body class="bg-[#0f0f0f] text-white font-['Inter'] flex flex-col h-screen overflow-hidden p-4">
-  <!-- Navigation Panel with z-index -->
+  <!-- Navigation Panel -->
   <nav class="fixed left-4 top-4 h-[calc(100vh-32px)] w-12 bg-[#212121] border border-neutral-800 flex flex-col items-center py-4 space-y-6 rounded-2xl">
+    <!-- Existing Buttons -->
     <button class="nav-btn" title="Layers" onclick="handleNavAction('layers')">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
@@ -116,7 +116,7 @@
         <div class="resize-handle handle-w" data-handle="w"></div>
         <div class="rotate-handle" data-handle="rotate"></div>
       </div>
-      <!-- Bottom Button: Smart Apply -->
+      <!-- Bottom Button: Smart Apply (for background removal on selected layer) -->
       <div class="absolute bottom-4 left-1/2 -translate-x-1/2">
         <button id="smart-apply-button" class="bg-gradient-to-r from-blue-500 to-green-500 text-white font-medium px-4 py-2 rounded-full flex items-center gap-2 hover:shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -127,7 +127,7 @@
         <!-- Hidden file input for Smart Apply -->
         <input type="file" id="smart-apply-input" accept="image/*" style="display: none;">
       </div>
-      <!-- Prompt Input -->
+      <!-- Prompt Input for text-based image generation -->
       <div class="absolute top-4 left-1/2 -translate-x-1/2 w-full max-w-3xl">
         <textarea placeholder="Write a prompt" rows="1"
           class="bg-[#212121] min-h-[56px] w-full px-6 py-4 pr-24 outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-300 placeholder:text-gray-400 resize-none overflow-hidden rounded-[28px] focus:rounded-3xl"></textarea>
@@ -143,7 +143,7 @@
         </div>
       </div>
     </div>
-    <!-- Right Panel -->
+    <!-- Right Panel for layers and assets -->
     <div id="right-panel" class="w-80 bg-[#212121] border-l border-neutral-800 h-full flex flex-col">
       <div id="layers-panel" class="flex-1 overflow-y-auto no-scrollbar">
         <div id="layers-header" class="text-white font-medium text-lg">Layers</div>
@@ -194,7 +194,8 @@
     let isPanning = false, panStart = { x: 0, y: 0 };
     let draggingLayer = false, layerDragStart = { x: 0, y: 0 }, initialLayerPos = { x: 0, y: 0 };
     let activeControl = null;
-    
+    let isCreatingMockup = false; // Flag for mockup base creation
+
     // Helper: convert data URL to Blob
     function dataURLtoBlob(dataurl) {
       const arr = dataurl.split(',');
@@ -249,6 +250,18 @@
       const rect = canvas.getBoundingClientRect();
       const mouseX = (e.clientX - rect.left - viewOffsetX) / viewScale;
       const mouseY = (e.clientY - rect.top - viewOffsetY) / viewScale;
+      // If creating a mockup base, use this click to place it
+      if(isCreatingMockup) {
+         const x = mouseX;
+         const y = mouseY;
+         const description = window.prompt("Describe the mockup base (e.g., black T-shirt, red mug, perfume bottle):");
+         if(description) {
+           generateMockupBase(description, x, y);
+         }
+         isCreatingMockup = false;
+         return;
+      }
+      // Check if click is inside a layer for dragging/selection
       if(selectedLayer &&
          mouseX >= selectedLayer.x - (selectedLayer.image.width * selectedLayer.scale) / 2 &&
          mouseX <= selectedLayer.x + (selectedLayer.image.width * selectedLayer.scale) / 2 &&
@@ -302,28 +315,25 @@
     // Prevent default on dragenter so drop events fire correctly.
     canvas.addEventListener('dragenter', (e) => { 
       e.preventDefault();
-      console.log("dragenter");
     });
     
     // Drag and drop file handling on canvas
     canvas.addEventListener('dragover', (e) => {
       e.preventDefault();
       canvas.style.border = '2px dashed #10b981';
-      console.log("dragover");
     });
     
-    canvas.addEventListener('dragleave', (e) => {
-      canvas.style.border = 'none';
-      console.log("dragleave");
-    });
-    
-    canvas.addEventListener('drop', (e) => {
+    // Modified drop event: if a file is dropped and the selected layer is a mockup, apply the mockup wrapping
+    canvas.addEventListener('drop', async (e) => {
       e.preventDefault();
       canvas.style.border = 'none';
-      console.log("drop");
       if(e.dataTransfer.files.length > 0) {
         const file = e.dataTransfer.files[0];
-        handleImageUpload(file);
+        if(selectedLayer && selectedLayer.is_mockup) {
+          await applyMockup(file, selectedLayer);
+        } else {
+          handleImageUpload(file);
+        }
       } else {
         const imgSrc = e.dataTransfer.getData('text/plain');
         if(imgSrc) {
@@ -337,6 +347,7 @@
     // Click on canvas to select a layer
     canvas.addEventListener('click', (e) => {
       if(activeControl) return;
+      // (If mockup creation is active, this click is handled above)
       const rect = canvas.getBoundingClientRect();
       const x = (e.clientX - rect.left - viewOffsetX) / viewScale;
       const y = (e.clientY - rect.top - viewOffsetY) / viewScale;
@@ -394,76 +405,35 @@
       updateLayersList();
     }
     
-    // Advanced mockup upload: sends selected mockup layer as base and file as design.
-    async function advancedMockupUpload(file) {
+    // Function to apply mockup: sends the base (mockup layer image) and design file to the backend.
+    async function applyMockup(file, mockupLayer) {
       try {
-        document.body.style.cursor = 'wait';
+        document.body.style.cursor = "wait";
         const formData = new FormData();
-        const baseBlob = dataURLtoBlob(selectedLayer.image.src);
-        formData.append("base", baseBlob, "base.png");
+        const baseBlob = await fetch(mockupLayer.image.src).then((res) => res.blob());
+        formData.append("base", baseBlob, "mockup.png");
         formData.append("design", file);
-        const response = await fetch('/apply-mockup-advanced', {
-          method: 'POST',
-          body: formData
+        const response = await fetch("/apply-mockup-advanced", {
+          method: "POST",
+          body: formData,
         });
         if (!response.ok) {
-          let errorMessage = "Advanced mockup failed";
-          try {
-            const contentType = response.headers.get("Content-Type");
-            if (contentType && contentType.includes("application/json")) {
-              const errorData = await response.json();
-              errorMessage = errorData.error || errorMessage;
-            } else {
-              errorMessage = await response.text();
-            }
-          } catch (err) {}
-          throw new Error(errorMessage);
+          throw new Error("Failed to apply mockup.");
         }
         const blob = await response.blob();
         const img = new Image();
         img.onload = () => {
-          layerCounter++;
-          const newLayer = {
-            id: layerCounter,
-            image: img,
-            visible: true,
-            name: `Advanced Mockup ${layerCounter}`,
-            x: (canvas.width / 2 - viewOffsetX) / viewScale,
-            y: (canvas.height / 2 - viewOffsetY) / viewScale,
-            scale: 1,
-            rotation: 0
-          };
-          layers.push(newLayer);
-          selectedLayer = newLayer;
+          mockupLayer.image = img;
           redrawCanvas();
           updateLayersList();
-          updateResizeOverlay();
         };
         img.src = URL.createObjectURL(blob);
-      } catch(error) {
-        alert("Error applying advanced mockup: " + error.message);
+      } catch (error) {
+        alert("Error applying mockup: " + error.message);
       } finally {
-        document.body.style.cursor = 'default';
+        document.body.style.cursor = "default";
       }
     }
-    
-    // Smart Apply button: triggers the hidden file input.
-    document.getElementById('smart-apply-button').addEventListener('click', () => {
-      if (!selectedLayer || !selectedLayer.is_mockup) {
-        alert("Please select a layer and toggle it to 'Mockup' mode first.");
-        return;
-      }
-      document.getElementById('smart-apply-input').click();
-    });
-    
-    // When a file is chosen via Smart Apply, process it.
-    document.getElementById('smart-apply-input').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file && selectedLayer && selectedLayer.is_mockup) {
-        advancedMockupUpload(file);
-      }
-      e.target.value = "";
-    });
     
     // Layers Panel: update list with toggle for mockup mode.
     function updateLayersList() {
@@ -610,9 +580,7 @@
       this.style.height = this.scrollHeight + 'px';
     });
     
-    // ---------------- Backend Integration ----------------
-    
-    // Remove Background from selected layer
+    // Backend Integration: Remove Background
     function removeBgSelected() {
       if(!selectedLayer) {
         alert("Please select a layer to remove its background.");
@@ -646,7 +614,7 @@
       })();
     }
     
-    // Attach prompt generation event
+    // Attach prompt generation event (for the prompt arrow in the top center)
     document.getElementById('prompt-arrow').addEventListener('click', async () => {
       const prompt = document.querySelector('textarea').value.trim();
       if(!prompt) { alert("Please enter a prompt."); return; }
@@ -681,11 +649,100 @@
       }
     });
     
+    // New: Function to generate a mockup base from a description and place it at (x,y)
+    async function generateMockupBase(prompt, x, y) {
+      try {
+        document.body.style.cursor = 'wait';
+        const response = await fetch("/generate-image", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ prompt })
+        });
+        if(!response.ok) {
+          throw new Error("Mockup base generation failed");
+        }
+        const data = await response.json();
+        if(data.image) {
+          const img = new Image();
+          img.onload = () => {
+            layerCounter++;
+            const layer = {
+              id: layerCounter,
+              image: img,
+              visible: true,
+              name: `Mockup Base ${layerCounter}`,
+              x: x,
+              y: y,
+              scale: 1,
+              rotation: 0,
+              is_mockup: true
+            };
+            layers.push(layer);
+            redrawCanvas();
+            updateLayersList();
+          };
+          img.src = "data:image/png;base64," + data.image;
+        } else {
+          throw new Error("No image data received for mockup base");
+        }
+      } catch(error) {
+        alert("Error generating mockup base: " + error.message);
+      } finally {
+        document.body.style.cursor = 'default';
+      }
+    }
+    
+    // New: Function to insert a design image via prompt (for design generation)
+    async function insertDesignImage() {
+      const prompt = window.prompt("Enter design prompt (include style, e.g., 'minimalist, vibrant'):");
+      if(!prompt) return;
+      try {
+        document.body.style.cursor = 'wait';
+        const response = await fetch("/generate-image", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ prompt })
+        });
+        if(!response.ok) {
+          throw new Error("Design image generation failed");
+        }
+        const data = await response.json();
+        if(data.image) {
+          const img = new Image();
+          img.onload = () => {
+            layerCounter++;
+            const x = (canvas.width / 2 - viewOffsetX) / viewScale;
+            const y = (canvas.height / 2 - viewOffsetY) / viewScale;
+            const layer = {
+              id: layerCounter,
+              image: img,
+              visible: true,
+              name: `Design ${layerCounter}`,
+              x: x,
+              y: y,
+              scale: 1,
+              rotation: 0,
+              is_mockup: false
+            };
+            layers.push(layer);
+            redrawCanvas();
+            updateLayersList();
+          };
+          img.src = "data:image/png;base64," + data.image;
+        } else {
+          throw new Error("No image data received for design");
+        }
+      } catch(error) {
+        alert("Error generating design image: " + error.message);
+      } finally {
+        document.body.style.cursor = 'default';
+      }
+    }
+    
     // Navigation actions
     function handleNavAction(action) {
       switch(action) {
         case 'layers': 
-          // For layers, we can simply hide the bottom panel.
           showBottomPanel('');
           break;
         case 'assets': 
@@ -699,6 +756,13 @@
           break;
         case 'removeBg': 
           removeBgSelected(); 
+          break;
+        case 'mockup':
+          isCreatingMockup = true;
+          alert("Click anywhere on the canvas to place your mockup base, then describe it.");
+          break;
+        case 'insert':
+          insertDesignImage();
           break;
       }
     }
