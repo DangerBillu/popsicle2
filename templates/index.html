@@ -378,9 +378,8 @@
       };
       reader.readAsDataURL(file);
     }
-    
-    // Add a new layer from an image
-    function addNewLayer(img) {
+
+    function addNewLayer(img, isMockup = false) {
       layerCounter++;
       let scale = Math.min(1, (canvas.width * 0.8) / img.width, (canvas.height * 0.8) / img.height);
       let centerX = (canvas.width / 2 - viewOffsetX) / viewScale;
@@ -399,43 +398,70 @@
         y: centerY,
         scale: scale,
         rotation: 0,
-        is_mockup: false
+        is_mockup: isMockup,
+        constrainToBase: isMockup ? false : true
       };
+      layer.minScale = 0.2;
+      layer.maxScale = 3.0;
       layers.push(layer);
       updateLayersList();
     }
     
-    // Function to apply mockup: sends the base (mockup layer image) and design file to the backend.
     async function applyMockup(file, mockupLayer) {
       try {
         document.body.style.cursor = "wait";
         const formData = new FormData();
-        const baseBlob = await fetch(mockupLayer.image.src).then((res) => res.blob());
+        const baseBlob = await fetch(mockupLayer.image.src)
+          .then(res => res.blob())
+          .then(blob => new Blob([blob], { type: "image/png" }));
+        const currentState = {
+          x: mockupLayer.x,
+          y: mockupLayer.y,
+          scale: mockupLayer.scale,
+          rotation: mockupLayer.rotation
+        };
+        if (!file.type.startsWith("image/")) {
+          throw new Error("Only image files can be used for mockups");
+        }
         formData.append("base", baseBlob, "mockup.png");
-        formData.append("design", file);
+        formData.append("design", file, "design.png");
         const response = await fetch("/apply-mockup-advanced", {
           method: "POST",
           body: formData,
         });
         if (!response.ok) {
-          throw new Error("Failed to apply mockup.");
+          let errorMessage = "Mockup application failed";
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch (e) {
+            errorMessage = await response.text();
+          }
+          throw new Error(errorMessage);
         }
         const blob = await response.blob();
         const img = new Image();
         img.onload = () => {
           mockupLayer.image = img;
+          mockupLayer.x = currentState.x;
+          mockupLayer.y = currentState.y;
+          mockupLayer.scale = currentState.scale;
+          mockupLayer.rotation = currentState.rotation;
           redrawCanvas();
           updateLayersList();
         };
+        img.onerror = () => {
+          throw new Error("Failed to load processed mockup image");
+        };
         img.src = URL.createObjectURL(blob);
       } catch (error) {
+        console.error("Mockup error:", error);
         alert("Error applying mockup: " + error.message);
       } finally {
         document.body.style.cursor = "default";
       }
     }
     
-    // Layers Panel: update list with toggle for mockup mode.
     function updateLayersList() {
       const layersList = document.getElementById('layers-list');
       layersList.innerHTML = '';
@@ -548,30 +574,38 @@
     }
     const handles = document.querySelectorAll('#resize-overlay [data-handle]');
     handles.forEach(handle => { handle.addEventListener('mousedown', onHandleMouseDown); });
+    // Update the mouse move handler for resize controls
     window.addEventListener('mousemove', (e) => {
-      if(activeControl && selectedLayer) {
-        if(activeControl.type === 'rotate') {
-          const center = activeControl.center;
-          const dx = e.clientX - center.x;
-          const dy = e.clientY - center.y;
-          const newAngle = Math.atan2(dy, dx);
-          const initialDx = activeControl.initialMouse.x - center.x;
-          const initialDy = activeControl.initialMouse.y - center.y;
-          const initialAngle = Math.atan2(initialDy, initialDx);
-          const delta = newAngle - initialAngle;
-          selectedLayer.rotation = activeControl.initialRotation + delta;
-        } else if(activeControl.type === 'resize') {
-          const center = activeControl.center;
-          const dx = e.clientX - center.x;
-          const dy = e.clientY - center.y;
-          const currentDistance = Math.sqrt(dx * dx + dy * dy);
-          const factor = currentDistance / activeControl.initialDistance;
-          selectedLayer.scale = activeControl.initialScale * factor;
-        }
-        redrawCanvas();
-        updateResizeOverlay();
+    if(activeControl && selectedLayer) {
+      if(activeControl.type === 'rotate') {
+        // Rotation handling
+        const center = activeControl.center;
+        const dx = e.clientX - center.x;
+        const dy = e.clientY - center.y;
+        const newAngle = Math.atan2(dy, dx);
+        const initialDx = activeControl.initialMouse.x - center.x;
+        const initialDy = activeControl.initialMouse.y - center.y;
+        const initialAngle = Math.atan2(initialDy, initialDx);
+        const delta = newAngle - initialAngle;
+        selectedLayer.rotation = activeControl.initialRotation + delta;
+      } else if(activeControl.type === 'resize') {
+        // Resize handling
+        const center = activeControl.center;
+        const dx = e.clientX - center.x;
+        const dy = e.clientY - center.y;
+        const currentDistance = Math.sqrt(dx*dx + dy*dy);
+        const scaleFactor = currentDistance / activeControl.initialDistance;
+        
+        // Apply scale constraints
+        selectedLayer.scale = Math.max(0.2, 
+          Math.min(3.0, 
+            activeControl.initialScale * scaleFactor));
       }
-    });
+      
+      redrawCanvas();
+      updateResizeOverlay();
+    }
+  });
     window.addEventListener('mouseup', () => { activeControl = null; });
     
     // Auto-resizing textarea
