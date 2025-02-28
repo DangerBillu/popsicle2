@@ -116,24 +116,53 @@ def apply_mockup_advanced():
     if base_img is None or design_img is None:
         return jsonify({"error": "Could not decode one or both images."}), 400
 
-    # Perspective Correction – using fixed demo destination points.
-    pts_dst = np.array([[100, 200], [400, 180], [420, 380], [120, 400]], dtype=np.float32)
+    # --- Use Detectron2 to detect placement region ---
+    try:
+        from detectron2.engine import DefaultPredictor
+        from detectron2.config import get_cfg
+        from detectron2 import model_zoo
+    except ImportError:
+        return jsonify({"error": "Detectron2 is not installed."}), 500
+
+    cfg = get_cfg()
+    cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
+    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5  # threshold for detection
+    cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
+    predictor = DefaultPredictor(cfg)
+    outputs = predictor(base_img)
+    instances = outputs["instances"]
+
+    if len(instances) > 0:
+        boxes = instances.pred_boxes.tensor.cpu().numpy()
+        areas = (boxes[:,2] - boxes[:,0]) * (boxes[:,3] - boxes[:,1])
+        idx = int(np.argmax(areas))
+        box = boxes[idx]  # [x1, y1, x2, y2]
+        pts_dst = np.array([[box[0], box[1]], [box[2], box[1]], [box[2], box[3]], [box[0], box[3]]], dtype=np.float32)
+        try:
+            masks = instances.pred_masks.cpu().numpy()
+            mask = (masks[idx].astype(np.uint8) * 255)
+        except Exception:
+            mask = np.zeros((base_img.shape[0], base_img.shape[1]), dtype=np.uint8)
+            cv2.fillConvexPoly(mask, pts_dst.astype(np.int32), 255)
+    else:
+        # Fallback destination points and mask.
+        pts_dst = np.array([[100, 200], [400, 180], [420, 380], [120, 400]], dtype=np.float32)
+        mask = np.zeros((base_img.shape[0], base_img.shape[1]), dtype=np.uint8)
+        cv2.fillConvexPoly(mask, pts_dst.astype(np.int32), 255)
+
+    # --- Perspective Correction ---
     h_design, w_design = design_img.shape[:2]
     pts_src = np.array([[0, 0], [w_design, 0], [w_design, h_design], [0, h_design]], dtype=np.float32)
     M, status = cv2.findHomography(pts_src, pts_dst)
     warped_design = cv2.warpPerspective(design_img, M, (base_img.shape[1], base_img.shape[0]))
 
-    # Smart Masking – create a binary mask for the destination quadrilateral.
-    mask = np.zeros((base_img.shape[0], base_img.shape[1]), dtype=np.uint8)
-    cv2.fillConvexPoly(mask, pts_dst.astype(np.int32), 255)
-
-    # Histogram Matching – use channel_axis=-1 instead of multichannel=True.
+    # --- Histogram Matching ---
     warped_design_float = warped_design.astype(np.float32)
     base_img_float = base_img.astype(np.float32)
     matched_design = match_histograms(warped_design_float, base_img_float, channel_axis=-1)
     matched_design = np.clip(matched_design, 0, 255).astype(np.uint8)
 
-    # Composite the matched design over the base using the mask.
+    # --- Composite using the mask ---
     mask_3ch = cv2.merge([mask, mask, mask]).astype(np.float32) / 255.0
     base_float = base_img.astype(np.float32)
     design_float = matched_design.astype(np.float32)
