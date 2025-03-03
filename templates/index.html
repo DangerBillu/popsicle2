@@ -76,7 +76,6 @@
 <body class="bg-[#0f0f0f] text-white font-['Inter'] flex flex-col h-screen overflow-hidden p-4">
   <!-- Navigation Panel -->
   <nav class="fixed left-4 top-4 h-[calc(100vh-32px)] w-12 bg-[#212121] border border-neutral-800 flex flex-col items-center py-4 space-y-6 rounded-2xl">
-    <!-- Existing Buttons -->
     <button class="nav-btn" title="Layers" onclick="handleNavAction('layers')">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
@@ -97,14 +96,17 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
       </svg>
     </button>
+    <button class="nav-btn" title="Apply Mockup" onclick="handleNavAction('mockup')">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+      </svg>
+    </button>
   </nav>
 
   <!-- Main Content -->
   <div id="canvas-container" class="pl-20 pr-4 flex h-full">
-    <!-- Canvas Container -->
     <div class="flex-1 relative overflow-hidden rounded-2xl bg-[#0f0f0f] border border-neutral-800">
       <canvas id="mainCanvas" class="w-full h-full" style="background: transparent;"></canvas>
-      <!-- Resizing overlay for selected layer -->
       <div id="resize-overlay" class="hidden">
         <div class="resize-handle handle-nw" data-handle="nw"></div>
         <div class="resize-handle handle-n" data-handle="n"></div>
@@ -116,7 +118,6 @@
         <div class="resize-handle handle-w" data-handle="w"></div>
         <div class="rotate-handle" data-handle="rotate"></div>
       </div>
-      <!-- Bottom Button: Smart Apply (for background removal on selected layer) -->
       <div class="absolute bottom-4 left-1/2 -translate-x-1/2">
         <button id="smart-apply-button" class="bg-gradient-to-r from-blue-500 to-green-500 text-white font-medium px-4 py-2 rounded-full flex items-center gap-2 hover:shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -124,10 +125,8 @@
           </svg>
           Smart Apply
         </button>
-        <!-- Hidden file input for Smart Apply -->
         <input type="file" id="smart-apply-input" accept="image/*" style="display: none;">
       </div>
-      <!-- Prompt Input for text-based image generation -->
       <div class="absolute top-4 left-1/2 -translate-x-1/2 w-full max-w-3xl">
         <textarea placeholder="Write a prompt" rows="1"
           class="bg-[#212121] min-h-[56px] w-full px-6 py-4 pr-24 outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-300 placeholder:text-gray-400 resize-none overflow-hidden rounded-[28px] focus:rounded-3xl"></textarea>
@@ -143,12 +142,38 @@
         </div>
       </div>
     </div>
-    <!-- Right Panel for layers and assets -->
     <div id="right-panel" class="w-80 bg-[#212121] border-l border-neutral-800 h-full flex flex-col">
+      <!-- Branding Section -->  
+      <div class="p-4 border-b border-neutral-800">
+        <h3 class="text-lg font-medium mb-4">Brand Details</h3>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm mb-1">Logo Upload</label>
+            <input type="file" id="logo-upload" accept="image/*" 
+                   class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4
+                          file:rounded-full file:border-0 file:text-sm file:font-semibold
+                          file:bg-neutral-700 file:text-white hover:file:bg-neutral-600">
+          </div>
+          <div>
+            <label class="block text-sm mb-1">Logo Description</label>
+            <textarea id="logo-desc" rows="2" 
+                      class="w-full bg-neutral-800 rounded-lg p-2 text-sm"
+                      placeholder="Describe your logo features and style"></textarea>
+          </div>
+          <div>
+            <label class="block text-sm mb-1">Brand Colors</label>
+            <input type="text" id="brand-colors" 
+                   class="w-full bg-neutral-800 rounded-lg p-2 text-sm"
+                   placeholder="Primary color, secondary color">
+          </div>
+        </div>
+      </div>
+      <!-- Layers Panel (existing) -->  
       <div id="layers-panel" class="flex-1 overflow-y-auto no-scrollbar">
         <div id="layers-header" class="text-white font-medium text-lg">Layers</div>
         <div id="layers-list" class="space-y-3 p-2"></div>
       </div>
+      <!-- Bottom Panel (existing) -->  
       <div id="bottom-panel" class="border-t border-neutral-800 overflow-hidden" style="max-height: 0;">
         <div id="assets-panel" class="p-6 overflow-y-auto max-h-[400px] hidden no-scrollbar">
           <div class="sticky top-0 bg-[#212121]/80 backdrop-blur-lg z-10 pb-4">
@@ -165,25 +190,11 @@
           </div>
           <div id="assets-grid" class="grid grid-cols-3 gap-3 mt-4"></div>
         </div>
-        <div id="adjustments-panel" class="p-6 hidden">
-          <h2 class="text-white font-medium text-lg mb-4">Adjustments</h2>
-          <div class="space-y-4">
-            <div class="space-y-2">
-              <label class="text-sm text-neutral-400">Brightness</label>
-              <input type="range" min="0" max="200" class="w-full accent-emerald-500">
-            </div>
-            <div class="space-y-2">
-              <label class="text-sm text-neutral-400">Contrast</label>
-              <input type="range" min="0" max="200" class="w-full accent-emerald-500">
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
 
   <script>
-    // Global variables and canvas setup
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d', { alpha: true });
     let layers = [];
@@ -194,9 +205,7 @@
     let isPanning = false, panStart = { x: 0, y: 0 };
     let draggingLayer = false, layerDragStart = { x: 0, y: 0 }, initialLayerPos = { x: 0, y: 0 };
     let activeControl = null;
-    let isCreatingMockup = false; // Flag for mockup base creation
 
-    // Helper: convert data URL to Blob
     function dataURLtoBlob(dataurl) {
       const arr = dataurl.split(',');
       const mime = arr[0].match(/:(.*?);/)[1];
@@ -205,8 +214,7 @@
       while(n--) { u8arr[n] = bstr.charCodeAt(n); }
       return new Blob([u8arr], {type: mime});
     }
-    
-    // Resize and redraw canvas
+
     function resizeCanvas() {
       canvas.width = canvas.offsetWidth;
       canvas.height = canvas.offsetHeight;
@@ -214,7 +222,7 @@
       updateResizeOverlay();
     }
     window.addEventListener('resize', resizeCanvas);
-    
+
     function redrawCanvas() {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -230,7 +238,7 @@
         }
       });
     }
-    
+
     function updateResizeOverlay() {
       const overlay = document.getElementById('resize-overlay');
       if(!selectedLayer) { overlay.classList.add('hidden'); return; }
@@ -244,24 +252,11 @@
       overlay.style.height = height + 'px';
       overlay.classList.remove('hidden');
     }
-    
-    // Canvas mouse events for dragging and panning
+
     canvas.addEventListener('mousedown', (e) => {
       const rect = canvas.getBoundingClientRect();
       const mouseX = (e.clientX - rect.left - viewOffsetX) / viewScale;
       const mouseY = (e.clientY - rect.top - viewOffsetY) / viewScale;
-      // If creating a mockup base, use this click to place it
-      if(isCreatingMockup) {
-         const x = mouseX;
-         const y = mouseY;
-         const description = window.prompt("Describe the mockup base (e.g., black T-shirt, red mug, perfume bottle):");
-         if(description) {
-           generateMockupBase(description, x, y);
-         }
-         isCreatingMockup = false;
-         return;
-      }
-      // Check if click is inside a layer for dragging/selection
       if(selectedLayer &&
          mouseX >= selectedLayer.x - (selectedLayer.image.width * selectedLayer.scale) / 2 &&
          mouseX <= selectedLayer.x + (selectedLayer.image.width * selectedLayer.scale) / 2 &&
@@ -279,7 +274,7 @@
       panStart.y = e.clientY;
       canvas.style.cursor = 'grabbing';
     });
-    
+
     canvas.addEventListener('mousemove', (e) => {
       if(draggingLayer && selectedLayer) {
         const dx = (e.clientX - layerDragStart.x) / viewScale;
@@ -299,31 +294,28 @@
         updateResizeOverlay();
       }
     });
-    
+
     canvas.addEventListener('mouseup', () => {
       isPanning = false;
       draggingLayer = false;
       canvas.style.cursor = 'grab';
     });
-    
+
     canvas.addEventListener('mouseleave', () => {
       isPanning = false;
       draggingLayer = false;
       canvas.style.cursor = 'grab';
     });
-    
-    // Prevent default on dragenter so drop events fire correctly.
+
     canvas.addEventListener('dragenter', (e) => { 
       e.preventDefault();
     });
-    
-    // Drag and drop file handling on canvas
+
     canvas.addEventListener('dragover', (e) => {
       e.preventDefault();
       canvas.style.border = '2px dashed #10b981';
     });
-    
-    // Modified drop event: if a file is dropped and the selected layer is a mockup, apply the mockup wrapping
+
     canvas.addEventListener('drop', async (e) => {
       e.preventDefault();
       canvas.style.border = 'none';
@@ -343,11 +335,9 @@
         }
       }
     });
-    
-    // Click on canvas to select a layer
+
     canvas.addEventListener('click', (e) => {
       if(activeControl) return;
-      // (If mockup creation is active, this click is handled above)
       const rect = canvas.getBoundingClientRect();
       const x = (e.clientX - rect.left - viewOffsetX) / viewScale;
       const y = (e.clientY - rect.top - viewOffsetY) / viewScale;
@@ -364,7 +354,7 @@
       }
       updateResizeOverlay();
     });
-    
+
     function handleImageUpload(file) {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -398,15 +388,12 @@
         y: centerY,
         scale: scale,
         rotation: 0,
-        is_mockup: isMockup,
-        constrainToBase: isMockup ? false : true
+        is_mockup: isMockup
       };
-      layer.minScale = 0.2;
-      layer.maxScale = 3.0;
       layers.push(layer);
       updateLayersList();
     }
-    
+
     async function applyMockup(file, mockupLayer) {
       try {
         document.body.style.cursor = "wait";
@@ -461,7 +448,7 @@
         document.body.style.cursor = "default";
       }
     }
-    
+
     function updateLayersList() {
       const layersList = document.getElementById('layers-list');
       layersList.innerHTML = '';
@@ -509,6 +496,7 @@
         layersList.appendChild(layerElement);
       });
     }
+
     function toggleMockup(layerId) {
       const layer = layers.find(l => l.id === layerId);
       if(layer) {
@@ -516,10 +504,12 @@
         updateLayersList();
       }
     }
+
     function selectLayer(layerId) {
       selectedLayer = layers.find(l => l.id === layerId);
       updateResizeOverlay();
     }
+
     function toggleLayerVisibility(layerId) {
       const layer = layers.find(l => l.id === layerId);
       if(layer){
@@ -529,6 +519,7 @@
         updateResizeOverlay();
       }
     }
+
     function deleteLayer(layerId) {
       layers = layers.filter(l => l.id !== layerId);
       if(selectedLayer && selectedLayer.id === layerId){ selectedLayer = null; }
@@ -536,6 +527,7 @@
       updateLayersList();
       updateResizeOverlay();
     }
+
     function reorderLayers(draggedId, targetId) {
       const draggedIndex = layers.findIndex(l => l.id === draggedId);
       const targetIndex = layers.findIndex(l => l.id === targetId);
@@ -546,8 +538,7 @@
         updateLayersList();
       }
     }
-    
-    // Resize/rotate handle events
+
     function onHandleMouseDown(e) {
       e.stopPropagation();
       const handleType = e.target.getAttribute('data-handle');
@@ -572,93 +563,62 @@
         activeControl.initialDistance = Math.sqrt(dx * dx + dy * dy);
       }
     }
+
     const handles = document.querySelectorAll('#resize-overlay [data-handle]');
     handles.forEach(handle => { handle.addEventListener('mousedown', onHandleMouseDown); });
-    // Update the mouse move handler for resize controls
+
     window.addEventListener('mousemove', (e) => {
-    if(activeControl && selectedLayer) {
-      if(activeControl.type === 'rotate') {
-        // Rotation handling
-        const center = activeControl.center;
-        const dx = e.clientX - center.x;
-        const dy = e.clientY - center.y;
-        const newAngle = Math.atan2(dy, dx);
-        const initialDx = activeControl.initialMouse.x - center.x;
-        const initialDy = activeControl.initialMouse.y - center.y;
-        const initialAngle = Math.atan2(initialDy, initialDx);
-        const delta = newAngle - initialAngle;
-        selectedLayer.rotation = activeControl.initialRotation + delta;
-      } else if(activeControl.type === 'resize') {
-        // Resize handling
-        const center = activeControl.center;
-        const dx = e.clientX - center.x;
-        const dy = e.clientY - center.y;
-        const currentDistance = Math.sqrt(dx*dx + dy*dy);
-        const scaleFactor = currentDistance / activeControl.initialDistance;
-        
-        // Apply scale constraints
-        selectedLayer.scale = Math.max(0.2, 
-          Math.min(3.0, 
-            activeControl.initialScale * scaleFactor));
+      if(activeControl && selectedLayer) {
+        if(activeControl.type === 'rotate') {
+          const center = activeControl.center;
+          const dx = e.clientX - center.x;
+          const dy = e.clientY - center.y;
+          const newAngle = Math.atan2(dy, dx);
+          const initialDx = activeControl.initialMouse.x - center.x;
+          const initialDy = activeControl.initialMouse.y - center.y;
+          const initialAngle = Math.atan2(initialDy, initialDx);
+          const delta = newAngle - initialAngle;
+          selectedLayer.rotation = activeControl.initialRotation + delta;
+        } else if(activeControl.type === 'resize') {
+          const center = activeControl.center;
+          const dx = e.clientX - center.x;
+          const dy = e.clientY - center.y;
+          const currentDistance = Math.sqrt(dx*dx + dy*dy);
+          const scaleFactor = currentDistance / activeControl.initialDistance;
+          selectedLayer.scale = Math.max(0.2, Math.min(3.0, activeControl.initialScale * scaleFactor));
+        }
+        redrawCanvas();
+        updateResizeOverlay();
       }
-      
-      redrawCanvas();
-      updateResizeOverlay();
-    }
-  });
+    });
+
     window.addEventListener('mouseup', () => { activeControl = null; });
-    
-    // Auto-resizing textarea
+
     document.querySelector('textarea').addEventListener('input', function() {
       this.style.height = 'auto';
       this.style.height = this.scrollHeight + 'px';
     });
-    
-    // Backend Integration: Remove Background
-    function removeBgSelected() {
-      if(!selectedLayer) {
-        alert("Please select a layer to remove its background.");
-        return;
-      }
-      (async () => {
-        try {
-          document.body.style.cursor = 'wait';
-          const blob = dataURLtoBlob(selectedLayer.image.src);
-          const formData = new FormData();
-          formData.append('file', blob, 'layer.png');
-          const response = await fetch('/remove-bg', { method: 'POST', body: formData });
-          if(!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || "Background removal failed");
-          }
-          const newBlob = await response.blob();
-          const img = new Image();
-          img.onload = () => {
-            selectedLayer.image = img;
-            redrawCanvas();
-            updateResizeOverlay();
-          };
-          img.src = URL.createObjectURL(newBlob);
-        } catch(error) {
-          console.error("Background removal failed:", error);
-          alert("Background removal failed: " + error.message);
-        } finally {
-          document.body.style.cursor = 'default';
-        }
-      })();
-    }
-    
-    // Attach prompt generation event (for the prompt arrow in the top center)
+
+    // Modified generate image handler to include branding info
     document.getElementById('prompt-arrow').addEventListener('click', async () => {
       const prompt = document.querySelector('textarea').value.trim();
+      const logoDesc = document.getElementById('logo-desc').value;
+      const logoFile = document.getElementById('logo-upload').files[0];
+      
       if(!prompt) { alert("Please enter a prompt."); return; }
+
+      const formData = new FormData();
+      formData.append('prompt', prompt);
+      formData.append('logo_desc', logoDesc);
+      if(logoFile) formData.append('logo', logoFile);
+
       try {
         document.body.style.cursor = 'wait';
         const response = await fetch('/generate-image', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt })
+          body: formData
         });
+        
         if(!response.ok){
           const errorData = await response.json();
           throw new Error(errorData.error || "Image generation failed");
@@ -682,98 +642,7 @@
         document.body.style.cursor = 'default';
       }
     });
-    
-    // New: Function to generate a mockup base from a description and place it at (x,y)
-    async function generateMockupBase(prompt, x, y) {
-      try {
-        document.body.style.cursor = 'wait';
-        const response = await fetch("/generate-image", {
-          method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({ prompt })
-        });
-        if(!response.ok) {
-          throw new Error("Mockup base generation failed");
-        }
-        const data = await response.json();
-        if(data.image) {
-          const img = new Image();
-          img.onload = () => {
-            layerCounter++;
-            const layer = {
-              id: layerCounter,
-              image: img,
-              visible: true,
-              name: `Mockup Base ${layerCounter}`,
-              x: x,
-              y: y,
-              scale: 1,
-              rotation: 0,
-              is_mockup: true
-            };
-            layers.push(layer);
-            redrawCanvas();
-            updateLayersList();
-          };
-          img.src = "data:image/png;base64," + data.image;
-        } else {
-          throw new Error("No image data received for mockup base");
-        }
-      } catch(error) {
-        alert("Error generating mockup base: " + error.message);
-      } finally {
-        document.body.style.cursor = 'default';
-      }
-    }
-    
-    // New: Function to insert a design image via prompt (for design generation)
-    async function insertDesignImage() {
-      const prompt = window.prompt("Enter design prompt (include style, e.g., 'minimalist, vibrant'):");
-      if(!prompt) return;
-      try {
-        document.body.style.cursor = 'wait';
-        const response = await fetch("/generate-image", {
-          method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({ prompt })
-        });
-        if(!response.ok) {
-          throw new Error("Design image generation failed");
-        }
-        const data = await response.json();
-        if(data.image) {
-          const img = new Image();
-          img.onload = () => {
-            layerCounter++;
-            const x = (canvas.width / 2 - viewOffsetX) / viewScale;
-            const y = (canvas.height / 2 - viewOffsetY) / viewScale;
-            const layer = {
-              id: layerCounter,
-              image: img,
-              visible: true,
-              name: `Design ${layerCounter}`,
-              x: x,
-              y: y,
-              scale: 1,
-              rotation: 0,
-              is_mockup: false
-            };
-            layers.push(layer);
-            redrawCanvas();
-            updateLayersList();
-          };
-          img.src = "data:image/png;base64," + data.image;
-        } else {
-          throw new Error("No image data received for design");
-        }
-      } catch(error) {
-        alert("Error generating design image: " + error.message);
-      } finally {
-        document.body.style.cursor = 'default';
-      }
-    }
-    
-    // Navigation actions
+
     function handleNavAction(action) {
       switch(action) {
         case 'layers': 
@@ -782,45 +651,46 @@
         case 'assets': 
           showBottomPanel('assets'); 
           break;
-        case 'adjustments': 
-          showBottomPanel('adjustments'); 
+        case 'removeBg': 
+          removeBgSelected(); 
           break;
         case 'download': 
           downloadCanvas(); 
           break;
-        case 'removeBg': 
-          removeBgSelected(); 
-          break;
         case 'mockup':
-          isCreatingMockup = true;
-          alert("Click anywhere on the canvas to place your mockup base, then describe it.");
-          break;
-        case 'insert':
-          insertDesignImage();
+          if(selectedLayer && selectedLayer.is_mockup) {
+            const designLayer = layers.find(l => l !== selectedLayer && !l.is_mockup);
+            if(designLayer) {
+              const designBlob = dataURLtoBlob(designLayer.image.src);
+              applyMockup(designBlob, selectedLayer);
+            } else {
+              alert("Add a design layer to apply to the selected mockup.");
+            }
+          } else {
+            alert("Select a mockup base layer first.");
+          }
           break;
       }
     }
-    
+
     function showBottomPanel(panelId) {
       document.getElementById('assets-panel').classList.add('hidden');
-      document.getElementById('adjustments-panel').classList.add('hidden');
       const bottomPanel = document.getElementById('bottom-panel');
-      if(panelId === 'assets' || panelId === 'adjustments'){
+      if(panelId === 'assets') {
         document.getElementById(panelId + '-panel').classList.remove('hidden');
         bottomPanel.style.maxHeight = '400px';
       } else {
         bottomPanel.style.maxHeight = '0';
       }
     }
-    
+
     function downloadCanvas() {
       const link = document.createElement('a');
       link.download = 'design.png';
       link.href = canvas.toDataURL();
       link.click();
     }
-    
-    // Asset upload functions
+
     function handleAssetUpload(event) {
       const files = event.target.files;
       const assetsGrid = document.getElementById('assets-grid');
@@ -835,7 +705,7 @@
         }
       }
     }
-    
+
     function createAssetElement(src, name) {
       const div = document.createElement('div');
       div.className = 'group relative bg-neutral-800/50 rounded-xl p-2 hover:bg-neutral-800 transition-colors cursor-move';
@@ -852,12 +722,11 @@
       div.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', src); });
       return div;
     }
-    
+
     function deleteAsset(button) {
       button.closest('div').remove();
     }
-    
-    // Initialize on window load
+
     window.onload = () => {
       updateLayersList();
       resizeCanvas();

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dynamic Mockup Mapping</title>
+    <style>
+        canvas { width: 100%; height: 100% }
+        #controls { position: fixed; top: 20px; left: 20px; background: rgba(0,0,0,0.7); padding: 10px; color: white; }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <input type="file" id="baseImage" accept="image/*" placeholder="Upload Base Image">
+        <input type="file" id="designImage" accept="image/*" placeholder="Upload Design">
+        <input type="range" id="displacementScale" min="0" max="1" step="0.1" value="0.3">
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, mesh;
+        let baseTexture, designTexture, displacementMap;
+        let isDragging = false;
+        let mouseStart = { x: 0, y: 0 };
+        let rotation = { x: 0, y: 0 };
+
+        init();
+        animate();
+
+        async function init() {
+            // Scene setup
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // Initial geometry
+            const geometry = new THREE.PlaneGeometry(10, 10, 256, 256);
+            
+            // Create initial textures
+            const texLoader = new THREE.TextureLoader();
+            baseTexture = texLoader.load('https://i.imgur.com/5m8HhJH.jpg');
+            designTexture = texLoader.load('https://i.imgur.com/blank.png');
+
+            // Generate displacement map from base texture
+            displacementMap = await createDisplacementMap(baseTexture);
+
+            // Create custom material
+            const material = new THREE.ShaderMaterial({
+                uniforms: {
+                    baseTexture: { value: baseTexture },
+                    designTexture: { value: designTexture },
+                    displacementMap: { value: displacementMap },
+                    displacementScale: { value: 0.3 },
+                    time: { value: 0 }
+                },
+                vertexShader: `
+                    varying vec2 vUv;
+                    uniform sampler2D displacementMap;
+                    uniform float displacementScale;
+                    uniform float time;
+
+                    void main() {
+                        vUv = uv;
+                        
+                        // Get displacement from base image
+                        vec4 disp = texture2D(displacementMap, uv);
+                        float displacement = (disp.r + disp.g + disp.b) / 3.0;
+                        
+                        // Offset vertices
+                        vec3 newPosition = position + 
+                            vec3(0.0, 0.0, displacement * displacementScale * 2.0);
+                        
+                        // Add wave effect
+                        newPosition.z += sin(time + position.x * 2.0) * 0.1;
+                        
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    varying vec2 vUv;
+                    uniform sampler2D baseTexture;
+                    uniform sampler2D designTexture;
+                    uniform float time;
+
+                    void main() {
+                        // Sample both textures
+                        vec4 baseColor = texture2D(baseTexture, vUv);
+                        vec4 designColor = texture2D(designTexture, vUv);
+                        
+                        // Combine with edge detection
+                        float edge = length(texture2D(displacementMap, vUv).rgb - 0.5);
+                        edge = smoothstep(0.2, 0.8, edge);
+                        
+                        // Final color mix
+                        gl_FragColor = mix(baseColor, designColor, edge);
+                    }
+                `
+            });
+
+            mesh = new THREE.Mesh(geometry, material);
+            scene.add(mesh);
+
+            camera.position.z = 15;
+
+            // Event listeners
+            setupEventListeners();
+        }
+
+        async function createDisplacementMap(texture) {
+            // Convert base texture to displacement map
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = texture.image.width;
+            canvas.height = texture.image.height;
+            
+            ctx.drawImage(texture.image, 0, 0);
+            
+            // Convert to grayscale
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            
+            for (let i = 0; i < data.length; i += 4) {
+                const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                data[i] = avg;     // R
+                data[i + 1] = avg; // G
+                data[i + 2] = avg; // B
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+            
+            // Create Three.js texture
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function setupEventListeners() {
+            // Base image upload
+            document.getElementById('baseImage').addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                baseTexture = await loadTexture(file);
+                displacementMap = await createDisplacementMap(baseTexture);
+                mesh.material.uniforms.displacementMap.value = displacementMap;
+                mesh.material.uniforms.baseTexture.value = baseTexture;
+            });
+
+            // Design image upload
+            document.getElementById('designImage').addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                designTexture = await loadTexture(file);
+                mesh.material.uniforms.designTexture.value = designTexture;
+            });
+
+            // Displacement scale control
+            document.getElementById('displacementScale').addEventListener('input', (e) => {
+                mesh.material.uniforms.displacementScale.value = e.target.value;
+            });
+
+            // Mouse controls
+            document.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                mouseStart.x = e.clientX;
+                mouseStart.y = e.clientY;
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const deltaX = e.clientX - mouseStart.x;
+                const deltaY = e.clientY - mouseStart.y;
+                
+                rotation.x += deltaY * 0.005;
+                rotation.y += deltaX * 0.005;
+                
+                mesh.rotation.set(rotation.x, rotation.y, 0);
+                mouseStart.x = e.clientX;
+                mouseStart.y = e.clientY;
+            });
+
+            document.addEventListener('mouseup', () => isDragging = false);
+        }
+
+        function loadTexture(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const texture = new THREE.Texture();
+                    texture.image = new Image();
+                    texture.image.onload = () => {
+                        texture.needsUpdate = true;
+                        resolve(texture);
+                    };
+                    texture.image.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            mesh.material.uniforms.time.value += 0.01;
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
